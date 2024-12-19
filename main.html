@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html lang="zh">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>车辆壁纸</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
 </head>
+
 <body>
     <header>
         <h1>欢迎来到车辆壁纸网站</h1>
         <nav>
-            <ul>
+            <div class="menu-toggle" id="mobile-menu">
+                <i class="fas fa-bars"></i> <!-- 汉堡菜单图标 -->
+            </div>
+            <ul id="nav-list">
                 <li><a href="#gallery" class="active">壁纸库</a></li>
                 <li><a href="#about">关于我们</a></li>
                 <li>
@@ -20,27 +27,48 @@
                         <a href="#feedback">反馈</a>
                     </div>
                 </li>
-                <li>
-                    <a href="#faq">常见问题</a>
-                    <div class="dropdown">
-                        <a href="#faq1">问题1</a>
-                        <a href="#faq2">问题2</a>
-                    </div>
-                </li>
+                <li><a href="faq.html">常见问题</a></li>
+                <li><a href="privacy-policy.html">隐私政策</a></li>
+                <li><a href="terms-of-service.html">使用条款</a></li>
                 <li>
                     <a href="#brands">车辆品牌</a>
                     <div class="dropdown">
                         <a href="#benz">奔驰</a>
                         <a href="#porsche">保时捷</a>
                         <a href="#hongqi">红旗</a>
+                        <a href="#xiaomi">小米</a>
                         <a href="#bmw">宝马</a>
                         <a href="#audi">奥迪</a>
+                        <a href="#ferrari">法拉利</a>
+                        <a href="#lamborghini">兰博基尼</a>
+                        <a href="#astonmartin">阿斯顿马丁</a>
+                        <a href="#maserati">玛莎拉蒂</a>
+                        <a href="#bugatti">布加迪</a>
+                        <a href="#ford">福特</a>
+
                     </div>
                 </li>
             </ul>
         </nav>
     </header>
-    
+
+    <div class="carousel">
+        <button class="carousel-button left" id="prevBtn">&#10094;</button>
+        <img src="cars/HongQi/HongQi.jpeg" alt="红旗壁纸" class="carousel-image">
+        <img src="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.jpg" alt="小米壁纸" class="carousel-image">
+        <img src="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.jpeg" alt="法拉利壁纸" class="carousel-image">
+        <img src="cars/MercedesBenz/MercedesBenz.jpg" alt="奔驰壁纸" class="carousel-image">
+        <img src="cars/Porsche/porsche-taycan-3840x2160-18805.jpg" alt="保时捷壁纸" class="carousel-image">
+        <img src="cars/BMW/BMW.jpg" alt="宝马壁纸" class="carousel-image">
+        <img src="cars/Audi/audi(2).jpg" alt="奥迪壁纸" class="carousel-image">
+        <img src="cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.jpg" alt="兰博基尼壁纸" class="carousel-image">
+        <img src="cars/Aston Martin/aston-martin-3840x2160-18505.jpg" alt="阿斯顿马丁壁纸" class="carousel-image">
+        <img src="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.jpg" alt="玛莎拉蒂壁纸" class="carousel-image">
+        <button class="carousel-button right" id="nextBtn">&#10095;</button>
+    </div>
+
+
+
 
 
     <section id="gallery">
@@ -54,71 +82,224 @@
                         <a href="#benz">奔驰</a>
                         <a href="#porsche">保时捷</a>
                         <a href="#hongqi">红旗</a>
+                        <a href="#xiaomi">小米</a>
                         <a href="#bmw">宝马</a>
                         <a href="#audi">奥迪</a>
+                        <a href="#ferrari">法拉利</a>
+                        <a href="#lamborghini">兰博基尼</a>
+                        <a href="#astonmartin">阿斯顿马丁</a>
+                        <a href="#maserati">玛莎拉蒂</a>
+                        <a href="#bugatti">布加迪</a>
+                        <a href="#ford">福特</a>
+
                     </div>
                 </li>
             </ul>
         </div>
-        
-    
+
+
         <div id="benz" class="brand-gallery">
-            <h4>奔驰壁纸</h4>
+            <h4>奔驰</h4>
             <div class="image-grid">
                 <img src="cars/MercedesBenz/MercedesBenz.jpg" alt="奔驰壁纸1">
-                <img src="benz2.jpg" alt="奔驰壁纸2">
+                <img src="cars/MercedesBenz/MercedesBenz(2).jpg" alt="奔驰壁纸2">
+                <img src="cars/MercedesBenz/mercedes-amg-gt3-2024-3840x2160-18212.jpg" alt="奔驰壁纸3">
+                <img src="cars/MercedesBenz/mercedes-benz-amg-gt-roadster-black-cars-edo-competition-3840x2160-6747.jpg"
+                    alt="奔驰壁纸4">
             </div>
         </div>
-    
+
         <div id="porsche" class="brand-gallery">
-            <h4>保时捷壁纸</h4>
+            <h4>保时捷</h4>
             <div class="image-grid">
+                <img src="cars/Porsche/porsche-taycan-3840x2160-18805.jpg" alt="保时捷壁纸3">
+                <img src="cars/Porsche/sportec-porsche-992-3840x2160-20098.jpg" alt="保时捷壁纸4">
                 <img src="cars/Porsche/Porsche.jpeg" alt="保时捷壁纸1">
                 <img src="cars/Porsche/Porsche(1).jpg" alt="保时捷壁纸2">
             </div>
         </div>
-    
+
         <div id="hongqi" class="brand-gallery">
-            <h4>红旗壁纸</h4>
+            <h4>红旗</h4>
             <div class="image-grid">
                 <img src="cars/HongQi/HongQi.jpeg" alt="红旗壁纸1">
-                <img src="cars/HongQi/HongQi2.jpg" alt="红旗壁纸2">
+                <img src="cars/HongQi/Hongqi_1920x1200.jpg" alt="红旗壁纸2">
             </div>
         </div>
-    
+
+        <div id="xiaomi" class="brand-gallery">
+            <h4>小米</h4>
+            <div class="image-grid">
+                <img src="cars/Xiaomi/小米SU7Ultra跑车3440x1440.jpg" alt="小米壁纸2">
+                <img src="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.jpg" alt="小米壁纸1">
+
+            </div>
+        </div>
+
         <div id="bmw" class="brand-gallery">
-            <h4>宝马壁纸</h4>
+            <h4>宝马</h4>
             <div class="image-grid">
-                <img src="cars/BMW/BMW1.jpg" alt="宝马壁纸1">
-                <img src="cars/BMW/BMW2.jpg" alt="宝马壁纸2">
+                <img src="cars/BMW/BMW.jpg" alt="宝马壁纸1">
+                <img src="cars/BMW/bmw-m4.jpg" alt="宝马壁纸2">
             </div>
         </div>
-    
+
         <div id="audi" class="brand-gallery">
-            <h4>奥迪壁纸</h4>
+            <h4>奥迪</h4>
             <div class="image-grid">
-                <img src="audi1.jpg" alt="奥迪壁纸1">
-                <img src="audi2.jpg" alt="奥迪壁纸2">
+                <img src="cars/Audi/audi.jpg" alt="奥迪壁纸1">
+                <img src="cars/Audi/audi(2).jpg" alt="奥迪壁纸2">
             </div>
         </div>
+
+        <div id="ferrari" class="brand-gallery">
+            <h4>法拉利</h4>
+            <div class="image-grid">
+                <img src="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.jpeg" alt="法拉利壁纸">
+                <img src="cars/Ferrari/ferrari-f80-red-3840x2160-19313.jpg" alt="法拉利壁纸">
+            </div>
+        </div>
+
+        <div id="lamborghini" class="brand-gallery">
+            <h4>兰博基尼</h4>
+            <div class="image-grid">
+                <img src="./cars/Lamborghini/lamborghini-essenza-scv12-hypercars-2020-3840x2160-1986.jpeg" alt="兰博基尼壁纸">
+                <img src="./cars/Lamborghini/lamborghini-3840x2160-11264.jpeg" alt="兰博基尼壁纸1">
+                <img src="./cars/Lamborghini/Lamborghini(3).jpg" alt="兰博基尼壁纸2">
+                <img src="./cars/Lamborghini/lamborghini-essenza-3840x2160-19501.jpg" alt="">
+            </div>
+        </div>
+
+        <div id="astonmartin" class="brand-gallery">
+            <h4>阿斯顿马丁</h4>
+            <div class="image-grid">
+                <img src="./cars/Aston Martin/aston-martin-3840x2160-19866.jpg" alt="阿斯顿马丁">
+                <img src="./cars/Aston Martin/aston-martin-dbs-3840x2160-20002.jpg" alt="阿斯顿马丁1">
+                <img src="./cars/Aston Martin/aston-martin-3840x2160-19160.jpg" alt="阿斯顿马丁2">
+                <img src="./cars/Aston Martin/aston-martin-3840x2160-18505.jpg" alt="阿斯顿马丁3">
+
+            </div>
+        </div>
+
+
+        <div id="maserati" class="brand-gallery">
+            <h4>玛莎拉蒂</h4>
+            <div class="image-grid">
+                <img src="./cars/Maserati/maserati-mcxtrema-3840x2160-18812.jpg" alt="玛莎拉蒂">
+                <img src="./cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.jpg" alt="玛莎拉蒂1">
+            </div>
+        </div>
+
+        <div id="bugatti" class="brand-gallery">
+            <h4>布加迪</h4>
+            <div class="image-grid">
+                <img src="./cars/Bugatti/bugatti-bolide-3840x2160-18182.jpg" alt="布加迪">
+                <img src="./cars/Bugatti/bugatti-chiron-pur-3840x2160-18367.jpg" alt="布加迪1">
+            </div>
+        </div>
+
+        <div id="ford" class="brand-gallery">
+            <h4>福特</h4>
+            <div class="image-grid">
+                <img src="./cars/Ford/ford-mustang-gtd-3840x2160-17135.jpg" alt="福特">
+                <img src="./cars/Ford/red-ford-mustang-gt-5k-8k-3840x2160-17475.jpg" alt="福特1">
+            </div>
+        </div>
+
+
+
+
     </section>
-    
-    
+
+
 
     <section id="about">
         <h2>关于我们</h2>
-        <p>这是一个致力于提供高质量车辆壁纸的网站，旨在为每位车迷提供最美丽的视觉享受。</p>
+        <p>本网站致力于提供高质量的车辆壁纸，以满足每位车迷的视觉需求。我们相信，汽车不仅仅是交通工具，它们代表着速度、激情与梦想。无论您是追求奢华的超跑，还是热爱经典的老爷车，我们都希望通过美丽的壁纸让您能够随时欣赏这些杰作。
+        </p>
+
+        <h3>我们的使命</h3>
+        <p>我们希望为每位车迷提供一个聚集各种车辆壁纸的平台，让每个人都能找到自己喜欢的汽车壁纸，并能以此作为日常使用的背景图，感受汽车文化的魅力。</p>
+
+        <h3>我们的团队</h3>
+        <p>我们是一支热爱汽车的团队，拥有多年的汽车文化和设计经验。</p>
+
+
+        <h3>我们的愿景</h3>
+        <p>我们希望成为全球首屈一指的车辆壁纸平台，打造一个互动社区，让车迷能够分享、交流与欣赏更多的汽车文化。</p>
+
+
+
+        <h3>用户反馈</h3>
+        <blockquote>
+            <p>“在这里找到的壁纸质量非常高，让我每次打开电脑都很愉快!” - 用户A</p>
+            <p>“我非常喜欢这个网站的设计风格，壁纸种类繁多，强烈推荐！” - 用户B</p>
+        </blockquote>
     </section>
+
 
     <section id="contact">
         <h2>联系我们</h2>
-        <p>如有任何问题，请通过以下方式联系我们：</p>
-        <p>Email: example@example.com</p>
+        <p>如有任何问题或建议，请通过以下方式与我们联系：</p>
+        <p>Email: <a href="mailto:3245602282@qq.com">3245602282@qq.com</a></p>
+        <p>电话: +86 166 **** 1270</p>
+        <p>地址: 湖南省**市**区**路**号</p>
+
+        <h3>社交媒体</h3>
+        <p>您也可以通过以下社交媒体与我们互动：</p>
+        <ul>
+            <li><a href="https://www.facebook.com/yourpage" target="_blank">Facebook</a></li>
+            <li><a href="https://twitter.com/yourprofile" target="_blank">Twitter</a></li>
+            <li><a href="https://www.instagram.com/yourpage" target="_blank">Instagram</a></li>
+            <li><a href="https://www.weibo.com/yourprofile" target="_blank">微博</a></li>
+        </ul>
+
+        <h3>反馈</h3>
+        <p>我们非常重视您的反馈，这将帮助我们不断改进和提升服务质量。请随时通过以下反馈表单与我们分享您的想法和建议：</p>
+
+        <form action="YOUR_BACKEND_ENDPOINT" method="post">
+            <label for="name">姓名:</label><br>
+            <input type="text" id="name" name="name" required><br>
+
+            <label for="email">邮箱:</label><br>
+            <input type="email" id="email" name="email" required><br>
+
+            <label for="message">留言:</label><br>
+            <textarea id="message" name="message" rows="4" required></textarea><br>
+
+            <input type="submit" value="发送反馈">
+        </form>
+
+        <p>您也可以直接发送电子邮件到 <a href="#feedback" onclick="scrollToFeedback()">这里</a>，我们会尽快回复您。</p>
     </section>
+
+    <!-- 反馈部分 -->
+    <section id="feedback">
+        <h2>用户反馈</h2>
+        <blockquote>
+            <p>“在这里找到的壁纸质量非常高，让我每次打开电脑都很愉快!” - 用户A</p>
+            <p>“我非常喜欢这个网站的设计风格，壁纸种类繁多，强烈推荐！” - 用户B</p>
+        </blockquote>
+    </section>
+
+    <script>
+        function scrollToFeedback() {
+            document.getElementById('feedback').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+
+
+
 
     <footer>
         <p>&copy; 2024 车辆壁纸网站. 保留所有权利.</p>
+        <p>
+            <a href="faq.html">常见问题</a> |
+            <a href="privacy-policy.html">隐私政策</a> |
+            <a href="terms-of-service.html">使用条款</a>
+        </p>
     </footer>
+
 
     <!-- 模态框结构 -->
     <div id="myModal" class="modal">
@@ -126,6 +307,8 @@
         <img class="modal-content" id="img01">
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
+    <a href="#gallery" class="back-to-home" id="backToHomeButton"><i class="fas fa-arrow-up"></i></a>
 </body>
+
 </html>

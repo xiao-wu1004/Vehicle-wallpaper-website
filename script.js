@@ -1,68 +1,63 @@
-// 获取模态框
-var modal = document.getElementById("myModal");
+// 轮播图相关变量
+let currentIndex = 0; // 当前显示的图片索引
+const images = document.querySelectorAll('.carousel-image'); // 获取所有轮播图的图片
+const totalImages = images.length;
 
-// 获取模态框中的图片元素
-var modalImg = document.getElementById("img01");
-
-// 获取所有的图片元素
-var images = document.querySelectorAll('.image-grid img');
-
-// 初始缩放比例
-var scale = 1;
-
-// 为每张图片添加点击事件
-images.forEach(function(image) {
-    image.onclick = function() {
-        modal.style.display = "block"; // 显示模态框
-        modalImg.src = this.src; // 设置模态框中的图像为点击的图像
-        scale = 1; // 重置缩放比例
-        modalImg.style.transform = "scale(1)"; // 应用初始缩放
-    }
-});
-
-// 获取关闭按钮
-var span = document.getElementsByClassName("close")[0];
-
-// 为关闭按钮添加点击事件
-span.onclick = function() {
-    modal.style.display = "none"; // 隐藏模态框
-}
-
-// 鼠标滚轮事件
-modalImg.onwheel = function(event) {
-    event.preventDefault(); // 防止默认滚动行为
-    if (event.deltaY < 0) { // 向上滚动（放大）
-        scale += 0.1; // 增加缩放比例
-    } else { // 向下滚动（缩小）
-        if (scale > 0.1) { // 确保缩放比例不小于0.1
-            scale -= 0.1; // 减少缩放比例
-        }
-    }
-    modalImg.style.transform = "scale(" + scale + ")"; // 应用新的缩放
-}
-
-// 点击模态框区域也可以关闭模态框
-modal.onclick = function() {
-    modal.style.display = "none"; // 隐藏模态框
-}
-
-// 高亮当前页面导航链接
-function highlightCurrentNav() {
-    var navLinks = document.querySelectorAll('nav ul li a'); // 获取所有导航链接
-    var currentHash = window.location.hash; // 获取当前 hash
-
-    navLinks.forEach(function(link) {
-        // 移除所有链接的 active 类
-        link.classList.remove('active');
-        // 如果链接的 href 与当前 hash 匹配，则添加 active 类
-        if (link.getAttribute('href') === currentHash) {
-            link.classList.add('active');
+// 显示当前图片
+function showImage(index) {
+    images.forEach((img, i) => {
+        img.classList.remove('active');
+        if (i === index) {
+            img.classList.add('active');
         }
     });
 }
 
-// 页面加载时高亮当前链接
-window.onload = highlightCurrentNav;
+// 下一张图片
+function nextImage() {
+    currentIndex = (currentIndex + 1) % totalImages; // 循环索引
+    showImage(currentIndex);
+}
 
-// hashchange 事件监控链接变化
-window.onhashchange = highlightCurrentNav;
+// 上一张图片
+function prevImage() {
+    currentIndex = (currentIndex - 1 + totalImages) % totalImages; // 循环索引
+    showImage(currentIndex);
+}
+
+// 绑定按钮事件
+document.getElementById('nextBtn').addEventListener('click', nextImage);
+document.getElementById('prevBtn').addEventListener('click', prevImage);
+
+// 自动轮播功能（可选）：每隔3秒切换到下一张
+setInterval(nextImage, 3000);
+
+// 汉堡菜单功能
+const mobileMenu = document.getElementById('mobile-menu');
+const navList = document.getElementById('nav-list');
+
+mobileMenu.addEventListener('click', () => {
+    navList.classList.toggle('active'); // 切换菜单的显示状态
+});
+
+// 返回首页按钮的显示/隐藏效果
+const backToHomeButton = document.getElementById('backToHomeButton');
+const threshold = 300; // 向下滚动的阈值
+
+window.addEventListener('scroll', () => {
+    if (document.body.scrollTop > threshold || document.documentElement.scrollTop > threshold) {
+        backToHomeButton.classList.add('show'); // 显示按钮
+    } else {
+        backToHomeButton.classList.remove('show'); // 隐藏按钮
+    }
+});
+
+// 反馈表单的提交（可选）：根据实际需求进行接口调用
+document.querySelector('form').addEventListener('submit', function(event) {
+    event.preventDefault(); // 防止默认提交行为
+    // 这里可以添加 AJAX 提交数据的代码
+    alert('感谢您的反馈！'); // 提交成功提示
+});
+
+// 页面加载完成后，自动显示第一张图片
+showImage(currentIndex);
