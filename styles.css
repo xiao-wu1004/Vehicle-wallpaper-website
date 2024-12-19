@@ -490,12 +490,16 @@ footer p {
 
 /* 增加整体的间距和间隔 */
 h2, h3, p {
-    margin: 0 0 15px; /* 上边距和下边距 */
-    line-height: 1.5; /* 行高 */
+    margin: 0 0 20px; /* 上边距和下边距 */
+    line-height: 1.6; /* 行高 */
     color: #555; /* 文本颜色 */
 }
 
-
+title{
+    font-size: 24px; /* 标题大小 */
+    font-weight: bold; /* 加粗标题 */
+    color: white; /* 标题颜色 */
+}
 
 /* 响应式设计 */
 @media (max-width: 768px) {
