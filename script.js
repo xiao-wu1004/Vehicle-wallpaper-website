@@ -19,8 +19,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 link.classList.add('active');
             }
         });
-
-
     }
 
     // 检查主页路径并处理返回按钮显示状态
@@ -35,9 +33,10 @@ document.addEventListener("DOMContentLoaded", function () {
             button.style.display = "block"; // 否则显示按钮
         }
     }
+
     // 页面加载时高亮当前链接
     highlightCurrentNav();
-    updateBackToHomeButton
+    updateBackToHomeButton();
 
     // 监听 hashchange 事件，更新导航和按钮状态
     window.addEventListener('hashchange', function () {
@@ -49,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                button.classList.add("show"); //当元素进入视口时，显示按钮
+                button.classList.add("show"); // 当元素进入视口时，显示按钮
             } else {
                 button.classList.remove("show"); // 当元素不在视口时，隐藏按钮
             }
@@ -74,6 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var modal = document.getElementById("myModal");
     var modalImg = document.getElementById("img01");
     var images = document.querySelectorAll('.image-grid img');
+    const downloadBtn = document.getElementById("downloadBtn");
     var scale = 1;
 
     // 为每张图片添加点击事件
@@ -84,6 +84,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 modalImg.src = this.src; // 设置模态框中的图像为点击的图像
                 scale = 1; // 重置缩放比例
                 modalImg.style.transform = "scale(1)"; // 应用初始缩放
+                downloadBtn.href = this.src; // 设置下载链接
+                downloadBtn.style.display = "block"; // 显示下载按钮
+                // 隐藏返回主页按钮
+                button.style.display = "none";
             });
         };
     });
@@ -94,6 +98,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // 为关闭按钮添加点击事件
     span.onclick = function () {
         modal.classList.remove('show'); // 移除模态框显示的类
+        downloadBtn.style.display = "none"; // 隐藏下载按钮
+        button.style.display = "block"; // 显示返回主页按钮
     };
 
     // 鼠标滚轮事件
@@ -106,31 +112,34 @@ document.addEventListener("DOMContentLoaded", function () {
                 scale -= 0.1; // 减少缩放比例
             }
         }
-        modalImg.style.transform = "scale(" + scale + ")"; // 应用新的缩放
+        // 使用 CSS 过渡实现平滑缩放
+        modalImg.style.transition = 'transform 0.3s ease';
+        modalImg.style.transform = `scale(${scale})`;
     };
 
     // 点击模态框区域也可以关闭模态框
     modal.onclick = function () {
         modal.classList.remove('show'); // 移除模态框显示的类
+        downloadBtn.style.display = "none"; // 隐藏下载按钮
+        button.style.display = "block"; // 显示返回主页按钮
     };
 
     // 按下 Esc 键关闭模态框
     window.onkeydown = function (event) {
         if (event.key === "Escape") {
             modal.classList.remove('show'); // 隐藏模态框
+            downloadBtn.style.display = "none"; // 隐藏下载按钮
+            button.style.display = "block"; // 显示返回主页按钮
         }
     };
-
 
     const carouselImages = document.querySelectorAll('.carousel-image');
     let currentIndex = 0;
 
     function showImage(index) {
         carouselImages.forEach((img, i) => {
-            img.classList.remove('active');
-            if (i === index) {
-                img.classList.add('active'); // 仅显示当前图像
-            }
+            img.style.transition = 'opacity 0.5s ease'; // 添加过渡效果
+            img.style.opacity = i === index ? 1 : 0; // 使用透明度实现淡入淡出效果
         });
     }
 
@@ -154,32 +163,31 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('nextBtn').addEventListener('click', showNextImage);
     document.getElementById('prevBtn').addEventListener('click', showPrevImage);
 
-
     function validateForm() {
         // 获取表单元素
         const name = document.getElementById('name').value.trim();
         const email = document.getElementById('email').value.trim();
         const message = document.getElementById('message').value.trim();
-    
+
         // 验证姓名
         if (name === "") {
             alert("姓名不能为空！");
             return false; // 阻止表单提交
         }
-    
+
         // 验证邮箱格式
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test(email)) {
             alert("请输入有效的邮箱地址！");
             return false; // 阻止表单提交
         }
-    
+
         // 验证留言内容
         if (message === "") {
             alert("留言内容不能为空！");
             return false; // 阻止表单提交
         }
-    
+
         // 通过验证，允许提交
         return true;
     }
