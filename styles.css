@@ -68,8 +68,9 @@ nav ul li .dropdown {
     min-width: 150px; /* 下拉菜单最小宽度 */
 }
 
-nav ul li:hover .dropdown {
-    display: block; /* 悬停父元素时显示下拉菜单 */
+nav ul li:hover .dropdown,
+nav ul li:focus-within .dropdown {
+    display: block; /* 悬停/点击父元素时显示下拉菜单 */
 }
 
 nav ul li .dropdown a {
@@ -111,8 +112,22 @@ nav ul li .dropdown a:hover {
         color: white; /* 汉堡菜单图标颜色 */
     }
 
-    nav ul.active { /* 导航栏打开时 */
-        display: flex; /* 汉堡菜单打开时显示模块 */
+    nav ul.active {
+        display: flex;
+    }
+    /* 移动端菜单展开时，下拉项直接显示 */
+    nav ul li .dropdown {
+        position: static;
+        display: none;
+        box-shadow: none;
+        border-radius: 0;
+        margin-top: 0;
+        min-width: auto;
+        background-color: #444;
+    }
+    nav ul li:hover .dropdown,
+    nav ul li:focus-within .dropdown {
+        display: block;
     }
 }
 
@@ -548,15 +563,181 @@ h1 {
     color: white; /* 标题颜色 */
 }
 
-/* 响应式设计 */
+/* ========== 响应式设计 ========== */
+
+/* -- 平板/手机 (≤768px) -- */
 @media (max-width: 768px) {
+    /* 头部 */
+    header {
+        padding: 12px 0;
+    }
+    h1 {
+        font-size: 18px;
+    }
+
+    /* 轮播图适配屏幕高度 */
+    .carousel {
+        height: min(600px, 35vh);
+    }
+    .carousel-button {
+        font-size: 22px;
+        padding: 8px;
+    }
+
+    /* 图片网格 — 两列紧凑布局 */
     .image-grid {
-        grid-template-columns: repeat(2, 1fr); /* 在小屏幕上每行展示2个图片 */
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 12px;
+    }
+    .image-grid img {
+        height: 200px;
+        border-radius: 6px;
+    }
+
+    /* 品牌导航 — 去掉下拉，平铺 */
+    .brand-navigation ul {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .brand-navigation ul li {
+        margin: 0;
+    }
+    .brand-navigation ul li a {
+        padding: 8px 14px;
+        font-size: 14px;
+    }
+    .brand-navigation ul li .dropdown {
+        display: none !important;
+    }
+
+    /* 段落标题 */
+    h2 { font-size: 1.3em; }
+    h3 { font-size: 1.1em; }
+
+    /* 区块 — 减小内边距 */
+    #about, #contact, #feedback {
+        margin: 12px;
+        padding: 16px;
+        border-radius: 10px;
+    }
+
+    /* 表单 */
+    #contact input[type="text"],
+    #contact input[type="email"],
+    #contact textarea {
+        padding: 10px;
+        font-size: 16px; /* 防止 iOS 自动放大 */
+    }
+    #contact input[type="submit"] {
+        width: 100%;
+        padding: 14px;
+        font-size: 17px;
+    }
+
+    /* 模态框 */
+    .modal-image-container {
+        width: 96vw;
+        height: 70vh;
+    }
+    .close {
+        top: 10px;
+        right: 16px;
+        font-size: 40px;
+    }
+    .download-btn {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+
+    /* 页脚 */
+    footer {
+        padding: 16px 12px;
+    }
+    footer a { font-size: 14px; }
+
+    /* 返回按钮 — 稍小 */
+    .back-to-home {
+        right: 14px;
+        bottom: 14px;
+        width: 44px;
+        height: 44px;
+    }
+    .back-to-home i {
+        font-size: 40px;
     }
 }
 
+/* -- 手机 (≤480px) -- */
 @media (max-width: 480px) {
+    h1 {
+        font-size: 16px;
+    }
+
+    /* 轮播图更矮 */
+    .carousel {
+        height: 220px;
+    }
+    .carousel-button {
+        font-size: 18px;
+        padding: 6px;
+    }
+
+    /* 图片网格 — 单列 */
     .image-grid {
-        grid-template-columns: 1fr; /* 在更小屏幕上每行展示1个图片 */
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 0 8px;
+    }
+    .image-grid img {
+        height: 240px;
+    }
+
+    /* 导航链接 */
+    nav ul li {
+        margin: 0 6px;
+    }
+    nav ul li a {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    /* 品牌导航 */
+    .brand-navigation ul li a {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    /* 区块 */
+    #about, #contact, #feedback {
+        margin: 8px;
+        padding: 12px;
+    }
+    #about blockquote {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    /* 表单 */
+    #contact input[type="submit"] {
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    /* 返回按钮 */
+    .back-to-home {
+        right: 10px;
+        bottom: 10px;
+        width: 40px;
+        height: 40px;
+    }
+    .back-to-home i {
+        font-size: 36px;
+    }
+
+    .close {
+        top: 8px;
+        right: 10px;
+        font-size: 36px;
     }
 }
