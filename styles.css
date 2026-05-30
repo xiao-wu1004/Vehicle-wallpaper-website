@@ -404,15 +404,28 @@ footer p {
     opacity: 1;
 }
 
-/* 关闭按钮 */
+/* 关闭按钮 — 始终可点击 */
 .close {
     position: absolute;
-    top: 20px;
-    right: 30px;
+    top: 16px;
+    right: 20px;
     color: white;
-    font-size: 35px;
+    font-size: 32px;
     font-weight: bold;
     cursor: pointer;
+    z-index: 100;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    transition: background 0.2s;
+    touch-action: manipulation;
+}
+.close:hover {
+    background: rgba(0, 0, 0, 0.7);
 }
 
 
@@ -641,9 +654,8 @@ h1 {
         height: 70vh;
     }
     .close {
-        top: 10px;
-        right: 16px;
-        font-size: 40px;
+        top: 12px;
+        right: 12px;
     }
     .download-btn {
         font-size: 14px;
@@ -736,8 +748,7 @@ h1 {
     }
 
     .close {
-        top: 8px;
+        top: 10px;
         right: 10px;
-        font-size: 36px;
     }
 }
