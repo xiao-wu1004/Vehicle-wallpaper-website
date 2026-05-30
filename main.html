@@ -276,10 +276,13 @@
         </p>
     </footer>
 
-    <!-- 模态框结构 -->
+    <!-- 模态框结构（双图层：底层模糊缩略图 + 顶层高清交叉淡入） -->
     <div id="myModal" class="modal">
         <span class="close">&times;</span>
-        <img class="modal-content" id="img01" alt="壁纸预览">
+        <div class="modal-image-container">
+            <img class="modal-placeholder" id="modalPlaceholder" alt="">
+            <img class="modal-hires" id="modalHires" alt="壁纸预览">
+        </div>
         <a id="downloadBtn" href="#" download class="download-btn" style="display:none;">下载图片</a>
     </div>
 

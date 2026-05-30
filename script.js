@@ -74,24 +74,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ===== 模态框（仅在主页存在） =====
     const modal = document.getElementById("myModal");
-    const modalImg = document.getElementById("img01");
+    const modalPlaceholder = document.getElementById("modalPlaceholder");
+    const modalHires = document.getElementById("modalHires");
     const images = document.querySelectorAll('.image-grid img');
     const downloadBtn = document.getElementById("downloadBtn");
     let scale = 1;
 
-    if (modal && modalImg && downloadBtn) {
-        // 关闭模态框（统一入口，避免重复代码）
+    if (modal && modalPlaceholder && modalHires && downloadBtn) {
+        // 关闭模态框（统一入口）
         function closeModal() {
             modal.classList.remove('show');
-            modalImg.classList.remove('blur-loading');
+            modalHires.classList.remove('loaded');
+            modalHires.src = '';
+            modalPlaceholder.src = '';
             downloadBtn.style.display = "none";
             if (button) button.style.display = "block";
         }
 
-        // 为每张图片：悬停预加载 + 点击渐进显示
+        // 为每张图片：悬停预加载 + 点击渐进显示（双图层交叉淡入）
         const preloadCache = {};
         images.forEach(function (image) {
-            // 悬停/触摸时提前下载高清 WebP
             function preloadHiRes() {
                 const fullSrc = image.dataset.full || image.src;
                 const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
@@ -104,36 +106,40 @@ document.addEventListener("DOMContentLoaded", function () {
             image.addEventListener('mouseenter', preloadHiRes);
             image.addEventListener('touchstart', preloadHiRes, { passive: true });
 
-            // 点击打开模态框
             image.addEventListener('click', function () {
                 requestAnimationFrame(() => {
                     modal.classList.add('show');
                     const fullSrc = this.dataset.full || this.src;
                     const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
                     scale = 1;
-                    modalImg.style.transform = "scale(1)";
+                    modalHires.style.transform = "scale(1)";
+                    modalHires.classList.remove('loaded');
                     downloadBtn.href = fullSrc;
                     downloadBtn.setAttribute('download', fullSrc.split('/').pop());
                     downloadBtn.style.display = "block";
                     if (button) button.style.display = "none";
 
+                    // 底层：立即显示已缓存的缩略图（CSS blur 滤镜常驻）
+                    modalPlaceholder.src = this.src;
+
                     const cached = preloadCache[previewSrc];
+                    function showHiRes() {
+                        modalHires.src = previewSrc;
+                        // 等浏览器解码完成后再淡入，避免闪烁
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                modalHires.classList.add('loaded');
+                            });
+                        });
+                    }
+
                     if (cached && cached.complete) {
-                        // 悬停预加载已完成 → 直接显示高清
-                        modalImg.src = previewSrc;
-                        modalImg.classList.remove('blur-loading');
+                        // 已预加载 → 直接显示高清
+                        showHiRes();
                     } else {
-                        // 未预加载 → 先显示缩略图模糊占位
-                        modalImg.src = this.src;
-                        modalImg.classList.add('blur-loading');
+                        // 后台加载
                         const hiRes = cached || new Image();
-                        hiRes.onload = function () {
-                            modalImg.src = previewSrc;
-                            modalImg.classList.remove('blur-loading');
-                        };
-                        hiRes.onerror = function () {
-                            modalImg.classList.remove('blur-loading');
-                        };
+                        hiRes.onload = showHiRes;
                         if (!cached) {
                             hiRes.src = previewSrc;
                             preloadCache[previewSrc] = hiRes;
@@ -149,8 +155,8 @@ document.addEventListener("DOMContentLoaded", function () {
             closeBtn.addEventListener('click', closeModal);
         }
 
-        // 鼠标滚轮事件
-        modalImg.addEventListener('wheel', function (event) {
+        // 鼠标滚轮缩放（作用于高清图层）
+        modalHires.addEventListener('wheel', function (event) {
             event.preventDefault();
             if (event.deltaY < 0) {
                 scale += 0.1;
@@ -159,8 +165,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     scale -= 0.1;
                 }
             }
-            modalImg.style.transition = 'transform 0.3s ease';
-            modalImg.style.transform = `scale(${scale})`;
+            modalHires.style.transition = 'transform 0.3s ease';
+            modalHires.style.transform = `scale(${scale})`;
         });
 
         // 点击模态框遮罩区域关闭（仅背景，不响应子元素点击）
