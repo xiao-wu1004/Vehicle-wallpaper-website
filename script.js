@@ -83,12 +83,28 @@ document.addEventListener("DOMContentLoaded", function () {
         // 关闭模态框（统一入口，避免重复代码）
         function closeModal() {
             modal.classList.remove('show');
+            modalImg.classList.remove('blur-loading');
             downloadBtn.style.display = "none";
             if (button) button.style.display = "block";
         }
 
-        // 为每张图片添加点击事件（渐进加载：模糊缩略图 → 高清 WebP）
+        // 为每张图片：悬停预加载 + 点击渐进显示
+        const preloadCache = {};
         images.forEach(function (image) {
+            // 悬停/触摸时提前下载高清 WebP
+            function preloadHiRes() {
+                const fullSrc = image.dataset.full || image.src;
+                const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
+                if (!preloadCache[previewSrc]) {
+                    const img = new Image();
+                    img.src = previewSrc;
+                    preloadCache[previewSrc] = img;
+                }
+            }
+            image.addEventListener('mouseenter', preloadHiRes);
+            image.addEventListener('touchstart', preloadHiRes, { passive: true });
+
+            // 点击打开模态框
             image.addEventListener('click', function () {
                 requestAnimationFrame(() => {
                     modal.classList.add('show');
@@ -101,17 +117,28 @@ document.addEventListener("DOMContentLoaded", function () {
                     downloadBtn.style.display = "block";
                     if (button) button.style.display = "none";
 
-                    // 先显示已缓存的缩略图（瞬间呈现），加模糊滤镜
-                    modalImg.src = this.src;
-                    modalImg.classList.add('blur-loading');
-
-                    // 后台预加载高清 WebP，完成后平滑替换
-                    const hiRes = new Image();
-                    hiRes.onload = function () {
+                    const cached = preloadCache[previewSrc];
+                    if (cached && cached.complete) {
+                        // 悬停预加载已完成 → 直接显示高清
                         modalImg.src = previewSrc;
                         modalImg.classList.remove('blur-loading');
-                    };
-                    hiRes.src = previewSrc;
+                    } else {
+                        // 未预加载 → 先显示缩略图模糊占位
+                        modalImg.src = this.src;
+                        modalImg.classList.add('blur-loading');
+                        const hiRes = cached || new Image();
+                        hiRes.onload = function () {
+                            modalImg.src = previewSrc;
+                            modalImg.classList.remove('blur-loading');
+                        };
+                        hiRes.onerror = function () {
+                            modalImg.classList.remove('blur-loading');
+                        };
+                        if (!cached) {
+                            hiRes.src = previewSrc;
+                            preloadCache[previewSrc] = hiRes;
+                        }
+                    }
                 });
             });
         });
