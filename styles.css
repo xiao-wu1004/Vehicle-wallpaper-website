@@ -426,47 +426,48 @@ footer p {
 }
 
 
-/* 返回首页按钮样式 */
-
+/* 返回顶部按钮 — 暗色金属风，匹配豪车壁纸主题 */
 .back-to-home {
-    position: fixed; /* 固定定位 */
-    right: 20px; /* 距离右侧20px */
-    bottom: 20px; /* 距离底部20px */
-    cursor: pointer; /* 鼠标指针 */
-    background-color: rgba(0, 123, 255, 0.9); /* 半透明蓝色背景 */
-    color: white; /* 白色文字 */
-    padding: 0; /* 移除内边距 */
-    border-radius: 50%; /* 圆形按钮 */
-    text-decoration: none; /* 去掉下划线 */
-    font-size: 50px; /* 增大字体大小，使图标更显眼 */
-    transition: background-color 0.3s, transform 0.3s; /* 添加过渡效果 */
-    z-index: 1000; /* 确保按钮在其他内容之上 */
-    opacity: 0; /* 初始不透明度 */
-    visibility: hidden; /* 初始不可见 */
-    display: flex; /* 使用 flexbox 来居中图标 */
-    align-items: center; /* 垂直居中 */
-    justify-content: center; /* 水平居中 */
-    width: 80px; /* 按钮宽度 */
-    height: 80px; /* 按钮高度 */
-    line-height: 80px; /* 行高与按钮高度相同 */
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    cursor: pointer;
+    background: rgba(51, 51, 51, 0.88);
+    color: #FFD700;
+    border-radius: 50%;
+    text-decoration: none;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
 }
 
 .back-to-home.show {
-    opacity: 1; /* 显示时不透明度为1 */
-    visibility: visible; /* 显示时可见 */
+    opacity: 1;
+    visibility: visible;
 }
 
 .back-to-home:hover {
-    background-color: rgba(0, 123, 255, 1); /* 悬停时变为不透明 */
-    transform: scale(1.1); /* 悬停时稍微放大 */
+    background: #FFD700;
+    color: #333;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
 }
 
-/* 图标样式 */
+/* 图标 — 居中无偏移 */
 .back-to-home i {
-    margin: 0; /* 清除所有外边距 */
-    padding-left: 11px; /* 清除所有内边距 */
-    line-height: 1; /* 清除图标默认的行高影响 */
-    font-size: 80px; /* 增大图标大小 */
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 
