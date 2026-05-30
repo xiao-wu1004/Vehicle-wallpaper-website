@@ -12,6 +12,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <!-- 预加载前 2 张轮播图，首屏瞬间显示 -->
+    <link rel="preload" as="image" href="cars/HongQi/HongQi.webp" fetchpriority="high">
+    <link rel="preload" as="image" href="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" fetchpriority="high">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -59,16 +62,16 @@
 
     <div class="carousel">
         <button class="carousel-button left" id="prevBtn">&#10094;</button>
-        <img src="cars/HongQi/HongQi.webp" alt="红旗壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" alt="小米壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.webp" alt="法拉利壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/MercedesBenz/MercedesBenz.webp" alt="奔驰壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Porsche/porsche-taycan-3840x2160-18805.webp" alt="保时捷壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/BMW/BMW.webp" alt="宝马壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Audi/audi(2).webp" alt="奥迪壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp" alt="兰博基尼壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Aston Martin/aston-martin-3840x2160-18505.webp" alt="阿斯顿马丁壁纸" class="carousel-image" loading="lazy">
-        <img src="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp" alt="玛莎拉蒂壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/HongQi/HongQi.webp" srcset="cars/_thumb/HongQi/HongQi.webp 600w, cars/HongQi/HongQi.webp 1600w" sizes="100vw" alt="红旗壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" srcset="cars/_thumb/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp 600w, cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp 1600w" sizes="100vw" alt="小米壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.webp" srcset="cars/_thumb/Ferrari/ferrari-12cilindri-3840x2160-19297.webp 600w, cars/Ferrari/ferrari-12cilindri-3840x2160-19297.webp 1600w" sizes="100vw" alt="法拉利壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/MercedesBenz/MercedesBenz.webp" srcset="cars/_thumb/MercedesBenz/MercedesBenz.webp 600w, cars/MercedesBenz/MercedesBenz.webp 1600w" sizes="100vw" alt="奔驰壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Porsche/porsche-taycan-3840x2160-18805.webp" srcset="cars/_thumb/Porsche/porsche-taycan-3840x2160-18805.webp 600w, cars/Porsche/porsche-taycan-3840x2160-18805.webp 1600w" sizes="100vw" alt="保时捷壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/BMW/BMW.webp" srcset="cars/_thumb/BMW/BMW.webp 600w, cars/BMW/BMW.webp 1600w" sizes="100vw" alt="宝马壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Audi/audi(2).webp" srcset="cars/_thumb/Audi/audi(2).webp 600w, cars/Audi/audi(2).webp 1600w" sizes="100vw" alt="奥迪壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp" srcset="cars/_thumb/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp 600w, cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp 1600w" sizes="100vw" alt="兰博基尼壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Aston Martin/aston-martin-3840x2160-18505.webp" srcset="cars/_thumb/Aston Martin/aston-martin-3840x2160-18505.webp 600w, cars/Aston Martin/aston-martin-3840x2160-18505.webp 1600w" sizes="100vw" alt="阿斯顿马丁壁纸" class="carousel-image" loading="lazy">
+        <img src="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp" srcset="cars/_thumb/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp 600w, cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp 1600w" sizes="100vw" alt="玛莎拉蒂壁纸" class="carousel-image" loading="lazy">
         <button class="carousel-button right" id="nextBtn">&#10095;</button>
     </div>
 

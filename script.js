@@ -87,21 +87,31 @@ document.addEventListener("DOMContentLoaded", function () {
             if (button) button.style.display = "block";
         }
 
-        // 为每张图片添加点击事件
+        // 为每张图片添加点击事件（渐进加载：模糊缩略图 → 高清 WebP）
         images.forEach(function (image) {
             image.addEventListener('click', function () {
                 requestAnimationFrame(() => {
                     modal.classList.add('show');
-                    // 下载用原图，预览用 WebP（最大 1600px，快速加载）
                     const fullSrc = this.dataset.full || this.src;
                     const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
-                    modalImg.src = previewSrc;
                     scale = 1;
                     modalImg.style.transform = "scale(1)";
                     downloadBtn.href = fullSrc;
                     downloadBtn.setAttribute('download', fullSrc.split('/').pop());
                     downloadBtn.style.display = "block";
                     if (button) button.style.display = "none";
+
+                    // 先显示已缓存的缩略图（瞬间呈现），加模糊滤镜
+                    modalImg.src = this.src;
+                    modalImg.classList.add('blur-loading');
+
+                    // 后台预加载高清 WebP，完成后平滑替换
+                    const hiRes = new Image();
+                    hiRes.onload = function () {
+                        modalImg.src = previewSrc;
+                        modalImg.classList.remove('blur-loading');
+                    };
+                    hiRes.src = previewSrc;
                 });
             });
         });

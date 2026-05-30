@@ -366,7 +366,12 @@ footer p {
     height: auto;
     width: auto;
     object-fit: contain;
-    transition: transform 0.3s ease; /* 增加平滑的缩放过渡效果 */
+    transition: transform 0.3s ease, filter 0.4s ease; /* 缩放 + 模糊过渡 */
+}
+
+/* 渐进加载：模糊占位 → 高清 */
+.modal-content.blur-loading {
+    filter: blur(12px);
 }
 
 /* 关闭按钮 */
