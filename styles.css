@@ -643,6 +643,131 @@ body.modal-open .back-to-home {
     visibility: hidden;
 }
 
+/* 页面锁定（菜单/模态框打开时禁止滚动） */
+body.scroll-locked {
+    overflow: hidden;
+}
+
+/* 品牌选择芯片列表 */
+.brand-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+}
+
+.brand-chip-list a {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 24px;
+    background: #eaeaea;
+    color: #333;
+    text-decoration: none;
+    font-size: 15px;
+    transition: background 0.3s, color 0.3s;
+}
+
+.brand-chip-list a:hover {
+    background: #555;
+    color: #fff;
+}
+
+/* 导航下拉展开按钮（移动端） */
+.nav-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-disclosure {
+    display: none;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+/* 移动端显示展开箭头 */
+@media (max-width: 768px) {
+    .nav-disclosure {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .has-children .dropdown {
+        display: none;
+    }
+
+    .has-children.is-open .dropdown {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+/* 图片卡片按钮（替代裸 img 标签） */
+.image-card {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.8);
+}
+
+.image-card img {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    display: block;
+}
+
+.image-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 表单字段 */
+.form-field {
+    margin-bottom: 15px;
+}
+
+.field-error {
+    color: #d32f2f;
+    font-size: 13px;
+    margin: 4px 0 0;
+    min-height: 18px;
+}
+
+.form-submit {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.form-submit:hover {
+    background-color: #0056b3;
+}
+
+/* 模态框底部操作栏 */
+.modal-actions {
+    text-align: center;
+    margin-top: 12px;
+}
+
 @media (max-width: 768px) {
     :root {
         --scroll-offset: 108px;
