@@ -201,22 +201,17 @@ nav ul li .dropdown {
     top: 100%;
     transform: translateX(-50%);
     min-width: 170px;
-    padding: 12px 8px 8px;
+    padding: 8px;
     border-radius: 16px;
     background: rgba(18, 18, 18, 0.97);
     box-shadow: var(--shadow-card);
     z-index: 1000;
 }
 
-/* 填充下拉菜单与触发元素之间的空隙，防止鼠标穿过时菜单消失 */
-nav ul li .dropdown::before {
-    content: '';
-    position: absolute;
-    top: -10px;
-    left: 0;
-    right: 0;
-    height: 10px;
-    background: transparent;
+/* has-children 的 li 向下扩展 12px 点击区域，确保鼠标移到下拉菜单时不会脱离 hover */
+nav ul li.has-children {
+    padding-bottom: 12px;
+    margin-bottom: -12px;
 }
 
 nav ul li:hover > .dropdown,
