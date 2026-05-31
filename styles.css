@@ -198,10 +198,10 @@ nav ul li .dropdown {
     display: none;
     position: absolute;
     left: 50%;
-    top: calc(100% - 6px);
+    top: 100%;
     transform: translateX(-50%);
     min-width: 170px;
-    padding: 14px 8px 8px;
+    padding: 8px;
     border-radius: 16px;
     background: rgba(18, 18, 18, 0.97);
     box-shadow: var(--shadow-card);
