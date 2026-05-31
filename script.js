@@ -1,230 +1,493 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const body = document.body;
     const mobileMenu = document.getElementById("mobile-menu");
     const navList = document.getElementById("nav-list");
-    const button = document.getElementById("backToHomeButton");
-
-    // 点击汉堡菜单时切换导航显示
-    if (mobileMenu && navList) {
-        mobileMenu.addEventListener("click", function () {
-            navList.classList.toggle("active");
-        });
-    }
-
-    // 高亮当前活动链接
-    const navLinks = document.querySelectorAll('nav ul li a');
-
-    function highlightCurrentNav() {
-        const currentHash = window.location.hash;
-        navLinks.forEach(function (link) {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === currentHash) {
-                link.classList.add('active');
-            }
-        });
-    }
-
-    // 检查主页路径并处理返回按钮显示状态
-    function updateBackToHomeButton() {
-        if (!button) return;
-        const currentHash = window.location.hash;
-        const isHomepage = currentHash === "" || window.location.pathname === "./";
-
-        if (isHomepage) {
-            button.style.display = "none";
-            button.classList.remove("show");
-        } else {
-            button.style.display = "block";
-        }
-    }
-
-    // 页面加载时高亮当前链接
-    highlightCurrentNav();
-    updateBackToHomeButton();
-
-    // 监听 hashchange 事件，更新导航和按钮状态
-    window.addEventListener('hashchange', function () {
-        highlightCurrentNav();
-        updateBackToHomeButton();
-    });
-
-    // 使用 Intersection Observer 来增强灵敏性
-    if (button) {
-        const observer = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    button.classList.add("show");
-                } else {
-                    button.classList.remove("show");
-                }
-            });
-        });
-        observer.observe(button);
-
-        // 监听滚动事件（改用 addEventListener 避免覆盖）
-        window.addEventListener('scroll', function () {
-            if (button.style.display === "block") {
-                if (document.body.scrollTop > 50 || document.documentElement.scrollTop > 50) {
-                    button.classList.add("show");
-                } else {
-                    button.classList.remove("show");
-                }
-            }
-        });
-    }
-
-    // ===== 模态框（仅在主页存在） =====
+    const navLinks = document.querySelectorAll("nav a");
+    const navDisclosureButtons = document.querySelectorAll(".nav-disclosure");
+    const header = document.querySelector("header");
+    const backToHomeButton = document.getElementById("backToHomeButton");
+    const gallerySection = document.getElementById("gallery");
     const modal = document.getElementById("myModal");
     const modalPlaceholder = document.getElementById("modalPlaceholder");
     const modalHires = document.getElementById("modalHires");
-    const images = document.querySelectorAll('.image-grid img');
     const downloadBtn = document.getElementById("downloadBtn");
-    let scale = 1;
+    const closeBtn = document.querySelector(".close");
+    const imageCards = document.querySelectorAll(".image-card");
+    const carouselImages = document.querySelectorAll(".carousel-image");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const form = document.querySelector("#contact form");
+    const internalHashLinks = document.querySelectorAll('a[href^="#"]');
 
-    if (modal && modalPlaceholder && modalHires && downloadBtn) {
-        // 关闭模态框（统一入口）
-        function closeModal() {
-            modal.classList.remove('show');
-            modalHires.classList.remove('loaded');
-            modalHires.src = '';
-            modalPlaceholder.src = '';
-            downloadBtn.style.display = "none";
-            if (button) button.style.display = "block";
+    const brandHashes = new Set([
+        "#brands",
+        "#benz",
+        "#porsche",
+        "#hongqi",
+        "#xiaomi",
+        "#bmw",
+        "#audi",
+        "#ferrari",
+        "#lamborghini",
+        "#astonmartin",
+        "#maserati",
+        "#bugatti",
+        "#ford"
+    ]);
+    const contactHashes = new Set(["#contact", "#feedback"]);
+    const scrollLocks = new Set();
+    const preloadCache = Object.create(null);
+
+    let modalScale = 1;
+    let carouselIndex = 0;
+    let carouselTimer = null;
+    let userStoppedCarousel = false;
+
+    function isMobileViewport() {
+        return window.matchMedia("(max-width: 768px)").matches;
+    }
+
+    function addScrollLock(key) {
+        scrollLocks.add(key);
+        syncScrollLock();
+    }
+
+    function removeScrollLock(key) {
+        scrollLocks.delete(key);
+        syncScrollLock();
+    }
+
+    function syncScrollLock() {
+        const shouldLock = scrollLocks.size > 0;
+
+        body.classList.toggle("scroll-locked", shouldLock);
+
+        body.classList.toggle("menu-open", scrollLocks.has("menu"));
+        body.classList.toggle("modal-open", scrollLocks.has("modal"));
+        updateBackToHomeButton();
+    }
+
+    function collapseDisclosure(button) {
+        const parent = button.closest(".has-children");
+        if (!parent) return;
+
+        parent.classList.remove("is-open");
+        button.setAttribute("aria-expanded", "false");
+    }
+
+    function collapseAllDisclosures(exceptButton) {
+        navDisclosureButtons.forEach(function (button) {
+            if (button !== exceptButton) {
+                collapseDisclosure(button);
+            }
+        });
+    }
+
+    function closeMenu() {
+        if (!mobileMenu || !navList) return;
+
+        navList.classList.remove("active");
+        mobileMenu.setAttribute("aria-expanded", "false");
+        collapseAllDisclosures();
+        removeScrollLock("menu");
+    }
+
+    function openMenu() {
+        if (!mobileMenu || !navList) return;
+
+        navList.classList.add("active");
+        mobileMenu.setAttribute("aria-expanded", "true");
+        if (isMobileViewport()) {
+            addScrollLock("menu");
+        }
+    }
+
+    function toggleMenu() {
+        if (!mobileMenu || !navList) return;
+
+        if (navList.classList.contains("active")) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    }
+
+    function highlightCurrentNav() {
+        const currentHash = window.location.hash;
+        const currentFile = (window.location.pathname.split("/").pop() || "").toLowerCase();
+        const fallbackHash = gallerySection ? "#gallery" : "";
+        const activeHash = currentHash || fallbackHash;
+
+        navLinks.forEach(function (link) {
+            const href = link.getAttribute("href") || "";
+            let isActive = false;
+
+            if (href.startsWith("#")) {
+                isActive = href === activeHash;
+
+                if (!isActive && href === "#contact" && contactHashes.has(activeHash)) {
+                    isActive = true;
+                }
+
+                if (!isActive && href === "#brands" && brandHashes.has(activeHash)) {
+                    isActive = true;
+                }
+            } else if (currentFile) {
+                isActive = currentFile === href.toLowerCase();
+            }
+
+            link.classList.toggle("active", isActive);
+        });
+    }
+
+    function updateBackToHomeButton() {
+        if (!backToHomeButton) return;
+
+        const href = backToHomeButton.getAttribute("href") || "";
+        const isMainPageButton = href === "#gallery";
+        const currentHash = window.location.hash;
+        const shouldShow = !isMainPageButton || window.scrollY > 260 || (currentHash && currentHash !== "#gallery");
+
+        backToHomeButton.classList.toggle(
+            "show",
+            shouldShow && !scrollLocks.has("menu") && !scrollLocks.has("modal")
+        );
+    }
+
+    function getHeaderOffset() {
+        if (isMobileViewport() && header) {
+            return header.getBoundingClientRect().height + 12;
         }
 
-        // 为每张图片：悬停预加载 + 点击渐进显示（双图层交叉淡入）
-        const preloadCache = {};
-        images.forEach(function (image) {
-            function preloadHiRes() {
-                const fullSrc = image.dataset.full || image.src;
-                const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
-                if (!preloadCache[previewSrc]) {
-                    const img = new Image();
-                    img.src = previewSrc;
-                    preloadCache[previewSrc] = img;
-                }
-            }
-            image.addEventListener('mouseenter', preloadHiRes);
-            image.addEventListener('touchstart', preloadHiRes, { passive: true });
+        return 24;
+    }
 
-            image.addEventListener('click', function () {
-                requestAnimationFrame(() => {
-                    modal.classList.add('show');
-                    const fullSrc = this.dataset.full || this.src;
-                    const previewSrc = fullSrc.replace(/\.(jpe?g|png)$/i, '.webp');
-                    scale = 1;
-                    modalHires.style.transform = "scale(1)";
-                    modalHires.classList.remove('loaded');
-                    downloadBtn.href = fullSrc;
-                    downloadBtn.setAttribute('download', fullSrc.split('/').pop());
-                    downloadBtn.style.display = "block";
-                    if (button) button.style.display = "none";
+    function scrollToHashTarget(hash, shouldUpdateHash) {
+        if (!hash || hash === "#") return false;
 
-                    // 底层：立即显示已缓存的缩略图（CSS blur 滤镜常驻）
-                    modalPlaceholder.src = this.src;
+        const target = document.querySelector(hash);
+        if (!target) return false;
 
-                    const cached = preloadCache[previewSrc];
-                    function showHiRes() {
-                        modalHires.src = previewSrc;
-                        // 等浏览器解码完成后再淡入，避免闪烁
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                modalHires.classList.add('loaded');
-                            });
-                        });
-                    }
+        const targetTop = target.getBoundingClientRect().top + window.scrollY - getHeaderOffset();
+        window.scrollTo({
+            top: Math.max(targetTop, 0),
+            left: 0,
+            behavior: "auto"
+        });
 
-                    if (cached && cached.complete) {
-                        // 已预加载 → 直接显示高清
-                        showHiRes();
-                    } else {
-                        // 后台加载
-                        const hiRes = cached || new Image();
-                        hiRes.onload = showHiRes;
-                        if (!cached) {
-                            hiRes.src = previewSrc;
-                            preloadCache[previewSrc] = hiRes;
-                        }
-                    }
+        if (shouldUpdateHash) {
+            history.replaceState(null, "", hash);
+        }
+
+        highlightCurrentNav();
+        updateBackToHomeButton();
+        return true;
+    }
+
+    function getPreviewSrc(card) {
+        const image = card.querySelector("img");
+        if (!image) return "";
+        return image.currentSrc || image.getAttribute("src") || "";
+    }
+
+    function getHiResPreviewSrc(fullSrc) {
+        if (!fullSrc) return "";
+        return fullSrc.replace(/\.(jpe?g|png)$/i, ".webp");
+    }
+
+    function preloadHiRes(card) {
+        const fullSrc = card.dataset.full || "";
+        const hiResSrc = getHiResPreviewSrc(fullSrc) || fullSrc;
+
+        if (!hiResSrc || preloadCache[hiResSrc]) {
+            return;
+        }
+
+        const image = new Image();
+        image.src = hiResSrc;
+        preloadCache[hiResSrc] = image;
+    }
+
+    function closeModal() {
+        if (!modal || !modalPlaceholder || !modalHires || !downloadBtn) return;
+
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        modalHires.classList.remove("loaded");
+        modalHires.src = "";
+        modalPlaceholder.src = "";
+        modalScale = 1;
+        modalHires.style.transform = "scale(1)";
+        downloadBtn.style.display = "none";
+        downloadBtn.href = "#";
+        removeScrollLock("modal");
+    }
+
+    function openModal(card) {
+        if (!modal || !modalPlaceholder || !modalHires || !downloadBtn) return;
+
+        const fullSrc = card.dataset.full || "";
+        const hiResSrc = getHiResPreviewSrc(fullSrc) || fullSrc;
+        const previewSrc = getPreviewSrc(card);
+
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+        addScrollLock("modal");
+
+        modalScale = 1;
+        modalHires.style.transform = "scale(1)";
+        modalHires.classList.remove("loaded");
+        modalHires.src = "";
+
+        modalPlaceholder.src = previewSrc;
+        downloadBtn.href = fullSrc;
+        downloadBtn.setAttribute("download", fullSrc.split("/").pop() || "wallpaper");
+        downloadBtn.style.display = "inline-flex";
+
+        const cachedImage = preloadCache[hiResSrc];
+
+        function showHiRes() {
+            modalHires.src = hiResSrc;
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    modalHires.classList.add("loaded");
                 });
+            });
+        }
+
+        if (cachedImage && cachedImage.complete) {
+            showHiRes();
+            return;
+        }
+
+        const hiResImage = cachedImage || new Image();
+        hiResImage.onload = showHiRes;
+        if (!cachedImage) {
+            hiResImage.src = hiResSrc;
+            preloadCache[hiResSrc] = hiResImage;
+        }
+    }
+
+    function showCarouselImage(index) {
+        carouselImages.forEach(function (image, imageIndex) {
+            const isActive = imageIndex === index;
+            image.style.opacity = isActive ? "1" : "0";
+            image.classList.toggle("active", isActive);
+            image.setAttribute("aria-hidden", isActive ? "false" : "true");
+        });
+    }
+
+    function showNextCarouselImage() {
+        carouselIndex = (carouselIndex + 1) % carouselImages.length;
+        showCarouselImage(carouselIndex);
+    }
+
+    function showPreviousCarouselImage() {
+        carouselIndex = (carouselIndex - 1 + carouselImages.length) % carouselImages.length;
+        showCarouselImage(carouselIndex);
+    }
+
+    function stopCarousel() {
+        if (carouselTimer) {
+            clearInterval(carouselTimer);
+            carouselTimer = null;
+        }
+    }
+
+    function startCarousel() {
+        if (carouselImages.length === 0) return;
+        if (userStoppedCarousel && isMobileViewport()) return;
+
+        stopCarousel();
+        carouselTimer = setInterval(showNextCarouselImage, 5000);
+    }
+
+    function handleManualCarousel(direction) {
+        if (direction === "next") {
+            showNextCarouselImage();
+        } else {
+            showPreviousCarouselImage();
+        }
+
+        if (isMobileViewport()) {
+            userStoppedCarousel = true;
+            stopCarousel();
+        }
+    }
+
+    function setFieldState(field, message) {
+        if (!field) return;
+
+        const hasError = Boolean(message);
+        field.element.setAttribute("aria-invalid", hasError ? "true" : "false");
+        field.error.textContent = message || "";
+    }
+
+    function validateField(field) {
+        const value = field.element.value.trim();
+
+        if (field.element.id === "name") {
+            if (!value) {
+                setFieldState(field, "请输入姓名。");
+                return false;
+            }
+        }
+
+        if (field.element.id === "email") {
+            if (!value) {
+                setFieldState(field, "请输入邮箱地址。");
+                return false;
+            }
+
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(value)) {
+                setFieldState(field, "请输入有效的邮箱地址。");
+                return false;
+            }
+        }
+
+        if (field.element.id === "message") {
+            if (!value) {
+                setFieldState(field, "请输入留言内容。");
+                return false;
+            }
+        }
+
+        setFieldState(field, "");
+        return true;
+    }
+
+    if (mobileMenu && navList) {
+        mobileMenu.addEventListener("click", toggleMenu);
+    }
+
+    navDisclosureButtons.forEach(function (button) {
+        button.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!isMobileViewport()) {
+                return;
+            }
+
+            const parent = button.closest(".has-children");
+            if (!parent) {
+                return;
+            }
+
+            const isOpen = parent.classList.contains("is-open");
+            collapseAllDisclosures(button);
+
+            if (isOpen) {
+                collapseDisclosure(button);
+                return;
+            }
+
+            parent.classList.add("is-open");
+            button.setAttribute("aria-expanded", "true");
+        });
+    });
+
+    navLinks.forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            if (!isMobileViewport()) {
+                return;
+            }
+
+            const href = link.getAttribute("href") || "";
+
+            if (href.startsWith("#")) {
+                event.preventDefault();
+                closeMenu();
+
+                window.setTimeout(function () {
+                    scrollToHashTarget(href, true);
+                }, 60);
+                return;
+            }
+
+            closeMenu();
+        });
+    });
+
+    internalHashLinks.forEach(function (link) {
+        if (link.closest("nav")) {
+            return;
+        }
+
+        link.addEventListener("click", function (event) {
+            const href = link.getAttribute("href") || "";
+            if (!href.startsWith("#")) {
+                return;
+            }
+
+            event.preventDefault();
+            scrollToHashTarget(href, true);
+        });
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!isMobileViewport() || !navList || !mobileMenu) {
+            return;
+        }
+
+        const clickedInsideNav = event.target.closest("nav");
+        if (!clickedInsideNav && navList.classList.contains("active")) {
+            closeMenu();
+        }
+    });
+
+    if (modal && modalPlaceholder && modalHires && downloadBtn) {
+        modal.setAttribute("aria-hidden", "true");
+
+        imageCards.forEach(function (card) {
+            card.addEventListener("mouseenter", function () {
+                preloadHiRes(card);
+            });
+
+            card.addEventListener("touchstart", function () {
+                preloadHiRes(card);
+            }, { passive: true });
+
+            card.addEventListener("click", function () {
+                openModal(card);
             });
         });
 
-        // 关闭按钮
-        const closeBtn = document.getElementsByClassName("close")[0];
         if (closeBtn) {
-            closeBtn.addEventListener('click', closeModal);
+            closeBtn.addEventListener("click", closeModal);
         }
 
-        // 鼠标滚轮缩放（作用于高清图层）
-        modalHires.addEventListener('wheel', function (event) {
-            event.preventDefault();
-            if (event.deltaY < 0) {
-                scale += 0.1;
-            } else {
-                if (scale > 0.1) {
-                    scale -= 0.1;
-                }
-            }
-            modalHires.style.transition = 'transform 0.3s ease';
-            modalHires.style.transform = `scale(${scale})`;
-        });
-
-        // 点击模态框遮罩区域关闭（仅背景，不响应子元素点击）
-        modal.addEventListener('click', function (event) {
+        modal.addEventListener("click", function (event) {
             if (event.target === modal) {
                 closeModal();
             }
         });
 
-        // 按下 Esc 键关闭模态框（改用 addEventListener 避免覆盖）
-        window.addEventListener('keydown', function (event) {
-            if (event.key === "Escape") {
+        modalHires.addEventListener("wheel", function (event) {
+            event.preventDefault();
+
+            if (event.deltaY < 0) {
+                modalScale += 0.1;
+            } else if (modalScale > 0.2) {
+                modalScale -= 0.1;
+            }
+
+            modalHires.style.transform = `scale(${modalScale})`;
+        });
+
+        window.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && modal.classList.contains("show")) {
                 closeModal();
             }
         });
     }
 
-    // ===== 轮播图（仅在主页存在） =====
-    const carouselImages = document.querySelectorAll('.carousel-image');
     if (carouselImages.length > 0) {
-        let currentIndex = 0;
-        let carouselTimer = null;
-
-        function showImage(index) {
-            carouselImages.forEach((img, i) => {
-                img.style.transition = 'opacity 0.5s ease';
-                img.style.opacity = i === index ? 1 : 0;
-            });
-        }
-
-        function showNextImage() {
-            currentIndex = (currentIndex + 1) % carouselImages.length;
-            showImage(currentIndex);
-        }
-
-        function showPrevImage() {
-            currentIndex = (currentIndex - 1 + carouselImages.length) % carouselImages.length;
-            showImage(currentIndex);
-        }
-
-        function startCarousel() {
-            stopCarousel();
-            carouselTimer = setInterval(showNextImage, 5000);
-        }
-
-        function stopCarousel() {
-            if (carouselTimer) {
-                clearInterval(carouselTimer);
-                carouselTimer = null;
-            }
-        }
-
-        // 初始化显示第一张图像
-        showImage(currentIndex);
+        showCarouselImage(carouselIndex);
         startCarousel();
 
-        // 页面不可见时暂停轮播，切回时恢复
-        document.addEventListener('visibilitychange', function () {
+        document.addEventListener("visibilitychange", function () {
             if (document.hidden) {
                 stopCarousel();
             } else {
@@ -232,49 +495,101 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // 为按钮添加事件监听器
-        const nextBtn = document.getElementById('nextBtn');
-        const prevBtn = document.getElementById('prevBtn');
-        if (nextBtn) nextBtn.addEventListener('click', showNextImage);
-        if (prevBtn) prevBtn.addEventListener('click', showPrevImage);
+        if (nextBtn) {
+            nextBtn.addEventListener("click", function () {
+                handleManualCarousel("next");
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener("click", function () {
+                handleManualCarousel("prev");
+            });
+        }
     }
 
-    // ===== 表单验证（仅在主页存在） =====
-    const form = document.querySelector('#contact form');
     if (form) {
-        form.addEventListener('submit', function (event) {
-            if (!validateForm()) {
-                event.preventDefault();
+        const fields = [
+            {
+                element: document.getElementById("name"),
+                error: document.getElementById("nameError")
+            },
+            {
+                element: document.getElementById("email"),
+                error: document.getElementById("emailError")
+            },
+            {
+                element: document.getElementById("message"),
+                error: document.getElementById("messageError")
             }
+        ].filter(function (field) {
+            return field.element && field.error;
+        });
+
+        fields.forEach(function (field) {
+            field.element.addEventListener("input", function () {
+                validateField(field);
+            });
+
+            field.element.addEventListener("blur", function () {
+                validateField(field);
+            });
+        });
+
+        form.addEventListener("submit", function (event) {
+            let firstInvalidField = null;
+
+            fields.forEach(function (field) {
+                const isValid = validateField(field);
+                if (!isValid && !firstInvalidField) {
+                    firstInvalidField = field.element;
+                }
+            });
+
+            if (firstInvalidField) {
+                event.preventDefault();
+                firstInvalidField.focus();
+                return;
+            }
+
+            event.preventDefault();
+            form.reset();
+            fields.forEach(function (field) {
+                setFieldState(field, "");
+            });
         });
     }
 
-    function validateForm() {
-        const nameEl = document.getElementById('name');
-        const emailEl = document.getElementById('email');
-        const messageEl = document.getElementById('message');
-        if (!nameEl || !emailEl || !messageEl) return true; // 无表单元素时放行
-
-        const name = nameEl.value.trim();
-        const email = emailEl.value.trim();
-        const message = messageEl.value.trim();
-
-        if (name === "") {
-            alert("姓名不能为空！");
-            return false;
+    function handleViewportChange() {
+        if (!isMobileViewport()) {
+            closeMenu();
+            if (userStoppedCarousel && !document.hidden) {
+                startCarousel();
+            }
         }
 
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(email)) {
-            alert("请输入有效的邮箱地址！");
-            return false;
-        }
-
-        if (message === "") {
-            alert("留言内容不能为空！");
-            return false;
-        }
-
-        return true;
+        updateBackToHomeButton();
     }
+
+    highlightCurrentNav();
+    if (window.location.hash) {
+        window.setTimeout(function () {
+            scrollToHashTarget(window.location.hash, false);
+        }, 0);
+    }
+    updateBackToHomeButton();
+
+    window.addEventListener("hashchange", function () {
+        if (window.location.hash) {
+            window.setTimeout(function () {
+                scrollToHashTarget(window.location.hash, false);
+            }, 0);
+        }
+
+        highlightCurrentNav();
+        updateBackToHomeButton();
+    });
+
+    window.addEventListener("scroll", updateBackToHomeButton, { passive: true });
+    window.addEventListener("resize", handleViewportChange);
 });

@@ -54,16 +54,32 @@
 <body>
     <header>
         <h1>欢迎来到车辆壁纸网站</h1>
-        <nav>
-            <div class="menu-toggle" id="mobile-menu">
-                <i class="fas fa-bars"></i>
-            </div>
+        <nav aria-label="主导航">
+            <button
+                class="menu-toggle"
+                id="mobile-menu"
+                type="button"
+                aria-label="打开导航菜单"
+                aria-controls="nav-list"
+                aria-expanded="false">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
             <ul id="nav-list">
                 <li><a href="#gallery" class="active">壁纸库</a></li>
                 <li><a href="#about">关于我们</a></li>
-                <li>
-                    <a href="#contact">联系我们</a>
-                    <div class="dropdown">
+                <li class="has-children">
+                    <div class="nav-item-row">
+                        <a href="#contact">联系我们</a>
+                        <button
+                            class="nav-disclosure"
+                            type="button"
+                            aria-label="展开联系我们子菜单"
+                            aria-controls="contact-submenu"
+                            aria-expanded="false">
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown" id="contact-submenu">
                         <a href="mailto:3245602282@qq.com">发送邮件</a>
                         <a href="#feedback">反馈</a>
                     </div>
@@ -71,9 +87,19 @@
                 <li><a href="faq.html">常见问题</a></li>
                 <li><a href="privacy-policy.html">隐私政策</a></li>
                 <li><a href="terms-of-service.html">使用条款</a></li>
-                <li>
-                    <a href="#brands">车辆品牌</a>
-                    <div class="dropdown">
+                <li class="has-children">
+                    <div class="nav-item-row">
+                        <a href="#brands">车辆品牌</a>
+                        <button
+                            class="nav-disclosure"
+                            type="button"
+                            aria-label="展开车辆品牌子菜单"
+                            aria-controls="brand-submenu"
+                            aria-expanded="false">
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown" id="brand-submenu">
                         <a href="#benz">奔驰</a>
                         <a href="#porsche">保时捷</a>
                         <a href="#hongqi">红旗</a>
@@ -93,7 +119,7 @@
     </header>
 
     <div class="carousel">
-        <button class="carousel-button left" id="prevBtn">&#10094;</button>
+        <button class="carousel-button left" id="prevBtn" type="button" aria-label="上一张壁纸">&#10094;</button>
         <img src="cars/HongQi/HongQi.webp" srcset="cars/_thumb/HongQi/HongQi.webp 600w, cars/HongQi/HongQi.webp 1600w" sizes="100vw" alt="红旗壁纸" class="carousel-image" loading="lazy">
         <img src="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" srcset="cars/_thumb/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp 600w, cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp 1600w" sizes="100vw" alt="小米壁纸" class="carousel-image" loading="lazy">
         <img src="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.webp" srcset="cars/_thumb/Ferrari/ferrari-12cilindri-3840x2160-19297.webp 600w, cars/Ferrari/ferrari-12cilindri-3840x2160-19297.webp 1600w" sizes="100vw" alt="法拉利壁纸" class="carousel-image" loading="lazy">
@@ -104,136 +130,194 @@
         <img src="cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp" srcset="cars/_thumb/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp 600w, cars/Lamborghini/lamborghini-hurac-n-3840x2160-18432.webp 1600w" sizes="100vw" alt="兰博基尼壁纸" class="carousel-image" loading="lazy">
         <img src="cars/Aston Martin/aston-martin-3840x2160-18505.webp" srcset="cars/_thumb/Aston Martin/aston-martin-3840x2160-18505.webp 600w, cars/Aston Martin/aston-martin-3840x2160-18505.webp 1600w" sizes="100vw" alt="阿斯顿马丁壁纸" class="carousel-image" loading="lazy">
         <img src="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp" srcset="cars/_thumb/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp 600w, cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp 1600w" sizes="100vw" alt="玛莎拉蒂壁纸" class="carousel-image" loading="lazy">
-        <button class="carousel-button right" id="nextBtn">&#10095;</button>
+        <button class="carousel-button right" id="nextBtn" type="button" aria-label="下一张壁纸">&#10095;</button>
     </div>
 
     <section id="gallery">
         <h2>壁纸库</h2>
-        <div class="brand-navigation">
+        <div class="brand-navigation" id="brands">
             <h3>选择品牌</h3>
-            <ul>
-                <li>
-                    <a href="#brands">品牌选择</a>
-                    <div class="dropdown">
-                        <a href="#benz">奔驰</a>
-                        <a href="#porsche">保时捷</a>
-                        <a href="#hongqi">红旗</a>
-                        <a href="#xiaomi">小米</a>
-                        <a href="#bmw">宝马</a>
-                        <a href="#audi">奥迪</a>
-                        <a href="#ferrari">法拉利</a>
-                        <a href="#lamborghini">兰博基尼</a>
-                        <a href="#astonmartin">阿斯顿马丁</a>
-                        <a href="#maserati">玛莎拉蒂</a>
-                        <a href="#bugatti">布加迪</a>
-                        <a href="#ford">福特</a>
-                    </div>
-                </li>
+            <ul class="brand-chip-list">
+                <li><a href="#benz">奔驰</a></li>
+                <li><a href="#porsche">保时捷</a></li>
+                <li><a href="#hongqi">红旗</a></li>
+                <li><a href="#xiaomi">小米</a></li>
+                <li><a href="#bmw">宝马</a></li>
+                <li><a href="#audi">奥迪</a></li>
+                <li><a href="#ferrari">法拉利</a></li>
+                <li><a href="#lamborghini">兰博基尼</a></li>
+                <li><a href="#astonmartin">阿斯顿马丁</a></li>
+                <li><a href="#maserati">玛莎拉蒂</a></li>
+                <li><a href="#bugatti">布加迪</a></li>
+                <li><a href="#ford">福特</a></li>
             </ul>
         </div>
 
         <div id="benz" class="brand-gallery">
             <h4>奔驰</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/MercedesBenz/MercedesBenz.webp" alt="奔驰壁纸1" data-full="cars/MercedesBenz/MercedesBenz.jpg" loading="lazy">
-                <img src="cars/_thumb/MercedesBenz/MercedesBenz(2).webp" alt="奔驰壁纸2" data-full="cars/MercedesBenz/MercedesBenz(2).jpg" loading="lazy">
-                <img src="cars/_thumb/MercedesBenz/mercedes-amg-gt3-2024-3840x2160-18212.webp" alt="奔驰壁纸3" data-full="cars/MercedesBenz/mercedes-amg-gt3-2024-3840x2160-18212.jpg" loading="lazy">
-                <img src="cars/_thumb/MercedesBenz/mercedes-benz-amg-gt-roadster-black-cars-edo-competition-3840x2160-6747.webp"
-                    alt="奔驰壁纸4" data-full="cars/MercedesBenz/mercedes-benz-amg-gt-roadster-black-cars-edo-competition-3840x2160-6747.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/MercedesBenz/MercedesBenz.jpg" aria-label="预览奔驰壁纸1">
+                    <img src="cars/_thumb/MercedesBenz/MercedesBenz.webp" alt="奔驰壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/MercedesBenz/MercedesBenz(2).jpg" aria-label="预览奔驰壁纸2">
+                    <img src="cars/_thumb/MercedesBenz/MercedesBenz(2).webp" alt="奔驰壁纸2" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/MercedesBenz/mercedes-amg-gt3-2024-3840x2160-18212.jpg" aria-label="预览奔驰壁纸3">
+                    <img src="cars/_thumb/MercedesBenz/mercedes-amg-gt3-2024-3840x2160-18212.webp" alt="奔驰壁纸3" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/MercedesBenz/mercedes-benz-amg-gt-roadster-black-cars-edo-competition-3840x2160-6747.jpg" aria-label="预览奔驰壁纸4">
+                    <img src="cars/_thumb/MercedesBenz/mercedes-benz-amg-gt-roadster-black-cars-edo-competition-3840x2160-6747.webp" alt="奔驰壁纸4" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="porsche" class="brand-gallery">
             <h4>保时捷</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Porsche/porsche-taycan-3840x2160-18805.webp" alt="保时捷壁纸1" data-full="cars/Porsche/porsche-taycan-3840x2160-18805.jpg" loading="lazy">
-                <img src="cars/_thumb/Porsche/sportec-porsche-992-3840x2160-20098.webp" alt="保时捷壁纸2" data-full="cars/Porsche/sportec-porsche-992-3840x2160-20098.jpg" loading="lazy">
-                <img src="cars/_thumb/Porsche/Porsche.webp" alt="保时捷壁纸3" data-full="cars/Porsche/Porsche.jpeg" loading="lazy">
-                <img src="cars/_thumb/Porsche/Porsche(1).webp" alt="保时捷壁纸4" data-full="cars/Porsche/Porsche(1).jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Porsche/porsche-taycan-3840x2160-18805.jpg" aria-label="预览保时捷壁纸1">
+                    <img src="cars/_thumb/Porsche/porsche-taycan-3840x2160-18805.webp" alt="保时捷壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Porsche/sportec-porsche-992-3840x2160-20098.jpg" aria-label="预览保时捷壁纸2">
+                    <img src="cars/_thumb/Porsche/sportec-porsche-992-3840x2160-20098.webp" alt="保时捷壁纸2" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Porsche/Porsche.jpeg" aria-label="预览保时捷壁纸3">
+                    <img src="cars/_thumb/Porsche/Porsche.webp" alt="保时捷壁纸3" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Porsche/Porsche(1).jpg" aria-label="预览保时捷壁纸4">
+                    <img src="cars/_thumb/Porsche/Porsche(1).webp" alt="保时捷壁纸4" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="hongqi" class="brand-gallery">
             <h4>红旗</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/HongQi/HongQi.webp" alt="红旗壁纸1" data-full="cars/HongQi/HongQi.jpeg" loading="lazy">
-                <img src="cars/_thumb/HongQi/Hongqi_1920x1200.webp" alt="红旗壁纸2" data-full="cars/HongQi/Hongqi_1920x1200.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/HongQi/HongQi.jpeg" aria-label="预览红旗壁纸1">
+                    <img src="cars/_thumb/HongQi/HongQi.webp" alt="红旗壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/HongQi/Hongqi_1920x1200.jpg" aria-label="预览红旗壁纸2">
+                    <img src="cars/_thumb/HongQi/Hongqi_1920x1200.webp" alt="红旗壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="xiaomi" class="brand-gallery">
             <h4>小米</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Xiaomi/小米SU7Ultra跑车3440x1440.webp" alt="小米壁纸1" data-full="cars/Xiaomi/小米SU7Ultra跑车3440x1440.jpg" loading="lazy">
-                <img src="cars/_thumb/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" alt="小米壁纸2" data-full="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Xiaomi/小米SU7Ultra跑车3440x1440.jpg" aria-label="预览小米壁纸1">
+                    <img src="cars/_thumb/Xiaomi/小米SU7Ultra跑车3440x1440.webp" alt="小米壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.jpg" aria-label="预览小米壁纸2">
+                    <img src="cars/_thumb/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" alt="小米壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="bmw" class="brand-gallery">
             <h4>宝马</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/BMW/BMW.webp" alt="宝马壁纸1" data-full="cars/BMW/BMW.jpg" loading="lazy">
-                <img src="cars/_thumb/BMW/bmw-m4.webp" alt="宝马壁纸2" data-full="cars/BMW/bmw-m4.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/BMW/BMW.jpg" aria-label="预览宝马壁纸1">
+                    <img src="cars/_thumb/BMW/BMW.webp" alt="宝马壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/BMW/bmw-m4.jpg" aria-label="预览宝马壁纸2">
+                    <img src="cars/_thumb/BMW/bmw-m4.webp" alt="宝马壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="audi" class="brand-gallery">
             <h4>奥迪</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Audi/audi.webp" alt="奥迪壁纸1" data-full="cars/Audi/audi.jpg" loading="lazy">
-                <img src="cars/_thumb/Audi/audi(2).webp" alt="奥迪壁纸2" data-full="cars/Audi/audi(2).jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Audi/audi.jpg" aria-label="预览奥迪壁纸1">
+                    <img src="cars/_thumb/Audi/audi.webp" alt="奥迪壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Audi/audi(2).jpg" aria-label="预览奥迪壁纸2">
+                    <img src="cars/_thumb/Audi/audi(2).webp" alt="奥迪壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="ferrari" class="brand-gallery">
             <h4>法拉利</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Ferrari/ferrari-12cilindri-3840x2160-19297.webp" alt="法拉利壁纸1" data-full="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.jpeg" loading="lazy">
-                <img src="cars/_thumb/Ferrari/ferrari-f80-red-3840x2160-19313.webp" alt="法拉利壁纸2" data-full="cars/Ferrari/ferrari-f80-red-3840x2160-19313.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Ferrari/ferrari-12cilindri-3840x2160-19297.jpeg" aria-label="预览法拉利壁纸1">
+                    <img src="cars/_thumb/Ferrari/ferrari-12cilindri-3840x2160-19297.webp" alt="法拉利壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Ferrari/ferrari-f80-red-3840x2160-19313.jpg" aria-label="预览法拉利壁纸2">
+                    <img src="cars/_thumb/Ferrari/ferrari-f80-red-3840x2160-19313.webp" alt="法拉利壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="lamborghini" class="brand-gallery">
             <h4>兰博基尼</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Lamborghini/lamborghini-essenza-scv12-hypercars-2020-3840x2160-1986.webp" alt="兰博基尼壁纸1" data-full="cars/Lamborghini/lamborghini-essenza-scv12-hypercars-2020-3840x2160-1986.jpeg" loading="lazy">
-                <img src="cars/_thumb/Lamborghini/lamborghini-3840x2160-11264.webp" alt="兰博基尼壁纸2" data-full="cars/Lamborghini/lamborghini-3840x2160-11264.jpeg" loading="lazy">
-                <img src="cars/_thumb/Lamborghini/Lamborghini(3).webp" alt="兰博基尼壁纸3" data-full="cars/Lamborghini/Lamborghini(3).jpg" loading="lazy">
-                <img src="cars/_thumb/Lamborghini/lamborghini-essenza-3840x2160-19501.webp" alt="兰博基尼壁纸4" data-full="cars/Lamborghini/lamborghini-essenza-3840x2160-19501.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Lamborghini/lamborghini-essenza-scv12-hypercars-2020-3840x2160-1986.jpeg" aria-label="预览兰博基尼壁纸1">
+                    <img src="cars/_thumb/Lamborghini/lamborghini-essenza-scv12-hypercars-2020-3840x2160-1986.webp" alt="兰博基尼壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Lamborghini/lamborghini-3840x2160-11264.jpeg" aria-label="预览兰博基尼壁纸2">
+                    <img src="cars/_thumb/Lamborghini/lamborghini-3840x2160-11264.webp" alt="兰博基尼壁纸2" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Lamborghini/Lamborghini(3).jpg" aria-label="预览兰博基尼壁纸3">
+                    <img src="cars/_thumb/Lamborghini/Lamborghini(3).webp" alt="兰博基尼壁纸3" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Lamborghini/lamborghini-essenza-3840x2160-19501.jpg" aria-label="预览兰博基尼壁纸4">
+                    <img src="cars/_thumb/Lamborghini/lamborghini-essenza-3840x2160-19501.webp" alt="兰博基尼壁纸4" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="astonmartin" class="brand-gallery">
             <h4>阿斯顿马丁</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-19866.webp" alt="阿斯顿马丁壁纸1" data-full="cars/Aston Martin/aston-martin-3840x2160-19866.jpg" loading="lazy">
-                <img src="cars/_thumb/Aston Martin/aston-martin-dbs-3840x2160-20002.webp" alt="阿斯顿马丁壁纸2" data-full="cars/Aston Martin/aston-martin-dbs-3840x2160-20002.jpg" loading="lazy">
-                <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-19160.webp" alt="阿斯顿马丁壁纸3" data-full="cars/Aston Martin/aston-martin-3840x2160-19160.jpg" loading="lazy">
-                <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-18505.webp" alt="阿斯顿马丁壁纸4" data-full="cars/Aston Martin/aston-martin-3840x2160-18505.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Aston Martin/aston-martin-3840x2160-19866.jpg" aria-label="预览阿斯顿马丁壁纸1">
+                    <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-19866.webp" alt="阿斯顿马丁壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Aston Martin/aston-martin-dbs-3840x2160-20002.jpg" aria-label="预览阿斯顿马丁壁纸2">
+                    <img src="cars/_thumb/Aston Martin/aston-martin-dbs-3840x2160-20002.webp" alt="阿斯顿马丁壁纸2" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Aston Martin/aston-martin-3840x2160-19160.jpg" aria-label="预览阿斯顿马丁壁纸3">
+                    <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-19160.webp" alt="阿斯顿马丁壁纸3" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Aston Martin/aston-martin-3840x2160-18505.jpg" aria-label="预览阿斯顿马丁壁纸4">
+                    <img src="cars/_thumb/Aston Martin/aston-martin-3840x2160-18505.webp" alt="阿斯顿马丁壁纸4" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="maserati" class="brand-gallery">
             <h4>玛莎拉蒂</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Maserati/maserati-mcxtrema-3840x2160-18812.webp" alt="玛莎拉蒂壁纸1" data-full="cars/Maserati/maserati-mcxtrema-3840x2160-18812.jpg" loading="lazy">
-                <img src="cars/_thumb/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp" alt="玛莎拉蒂壁纸2" data-full="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Maserati/maserati-mcxtrema-3840x2160-18812.jpg" aria-label="预览玛莎拉蒂壁纸1">
+                    <img src="cars/_thumb/Maserati/maserati-mcxtrema-3840x2160-18812.webp" alt="玛莎拉蒂壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Maserati/maserati-mc20-2024-5k-3840x2160-18438.jpg" aria-label="预览玛莎拉蒂壁纸2">
+                    <img src="cars/_thumb/Maserati/maserati-mc20-2024-5k-3840x2160-18438.webp" alt="玛莎拉蒂壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="bugatti" class="brand-gallery">
             <h4>布加迪</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Bugatti/bugatti-bolide-3840x2160-18182.webp" alt="布加迪壁纸1" data-full="cars/Bugatti/bugatti-bolide-3840x2160-18182.jpg" loading="lazy">
-                <img src="cars/_thumb/Bugatti/bugatti-chiron-pur-3840x2160-18367.webp" alt="布加迪壁纸2" data-full="cars/Bugatti/bugatti-chiron-pur-3840x2160-18367.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Bugatti/bugatti-bolide-3840x2160-18182.jpg" aria-label="预览布加迪壁纸1">
+                    <img src="cars/_thumb/Bugatti/bugatti-bolide-3840x2160-18182.webp" alt="布加迪壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Bugatti/bugatti-chiron-pur-3840x2160-18367.jpg" aria-label="预览布加迪壁纸2">
+                    <img src="cars/_thumb/Bugatti/bugatti-chiron-pur-3840x2160-18367.webp" alt="布加迪壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
 
         <div id="ford" class="brand-gallery">
             <h4>福特</h4>
             <div class="image-grid">
-                <img src="cars/_thumb/Ford/ford-mustang-gtd-3840x2160-17135.webp" alt="福特壁纸1" data-full="cars/Ford/ford-mustang-gtd-3840x2160-17135.jpg" loading="lazy">
-                <img src="cars/_thumb/Ford/red-ford-mustang-gt-5k-8k-3840x2160-17475.webp" alt="福特壁纸2" data-full="cars/Ford/red-ford-mustang-gt-5k-8k-3840x2160-17475.jpg" loading="lazy">
+                <button class="image-card" type="button" data-full="cars/Ford/ford-mustang-gtd-3840x2160-17135.jpg" aria-label="预览福特壁纸1">
+                    <img src="cars/_thumb/Ford/ford-mustang-gtd-3840x2160-17135.webp" alt="福特壁纸1" loading="lazy">
+                </button>
+                <button class="image-card" type="button" data-full="cars/Ford/red-ford-mustang-gt-5k-8k-3840x2160-17475.jpg" aria-label="预览福特壁纸2">
+                    <img src="cars/_thumb/Ford/red-ford-mustang-gt-5k-8k-3840x2160-17475.webp" alt="福特壁纸2" loading="lazy">
+                </button>
             </div>
         </div>
     </section>
@@ -277,17 +361,49 @@
         <h3>反馈</h3>
         <p>我们非常重视您的反馈，这将帮助我们不断改进和提升服务质量。请随时通过以下反馈表单与我们分享您的想法和建议：</p>
 
-        <form action="#" method="post">
-            <label for="name">姓名:</label><br>
-            <input type="text" id="name" name="name" required><br>
+        <form action="#" method="post" novalidate>
+            <div class="form-field">
+                <label for="name">姓名:</label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    autocomplete="name"
+                    enterkeyhint="next"
+                    aria-describedby="nameError"
+                    required>
+                <p class="field-error" id="nameError" aria-live="polite"></p>
+            </div>
 
-            <label for="email">邮箱:</label><br>
-            <input type="email" id="email" name="email" required><br>
+            <div class="form-field">
+                <label for="email">邮箱:</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    autocomplete="email"
+                    enterkeyhint="next"
+                    inputmode="email"
+                    spellcheck="false"
+                    aria-describedby="emailError"
+                    required>
+                <p class="field-error" id="emailError" aria-live="polite"></p>
+            </div>
 
-            <label for="message">留言:</label><br>
-            <textarea id="message" name="message" rows="4" required></textarea><br>
+            <div class="form-field">
+                <label for="message">留言:</label>
+                <textarea
+                    id="message"
+                    name="message"
+                    rows="4"
+                    autocomplete="off"
+                    enterkeyhint="send"
+                    aria-describedby="messageError"
+                    required></textarea>
+                <p class="field-error" id="messageError" aria-live="polite"></p>
+            </div>
 
-            <input type="submit" value="发送反馈">
+            <button type="submit" class="form-submit">发送反馈</button>
         </form>
     </section>
 
@@ -309,18 +425,23 @@
     </footer>
 
     <!-- 模态框结构（双图层：底层模糊缩略图 + 顶层高清交叉淡入） -->
-    <div id="myModal" class="modal">
-        <span class="close">&times;</span>
+    <div id="myModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <p id="modalTitle" class="sr-only">壁纸预览</p>
+        <button class="close" type="button" aria-label="关闭预览">
+            <span aria-hidden="true">&times;</span>
+        </button>
         <div class="modal-image-container">
             <img class="modal-placeholder" id="modalPlaceholder" alt="">
             <img class="modal-hires" id="modalHires" alt="壁纸预览">
         </div>
-        <a id="downloadBtn" href="#" download class="download-btn" style="display:none;">下载图片</a>
+        <div class="modal-actions">
+            <a id="downloadBtn" href="#" download class="download-btn" style="display:none;">下载图片</a>
+        </div>
     </div>
 
     <script src="script.js" defer></script>
     <script defer src="/_vercel/insights/script.js"></script>
-    <a href="#gallery" class="back-to-home" id="backToHomeButton"><i class="fas fa-arrow-up"></i></a>
+    <a href="#gallery" class="back-to-home" id="backToHomeButton" aria-label="返回壁纸库顶部"><i class="fas fa-arrow-up" aria-hidden="true"></i></a>
 </body>
 
 </html>

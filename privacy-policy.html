@@ -12,10 +12,10 @@
 <body>
     <header>
         <h2>隐私政策</h2>
-        <nav>
-            <div class="menu-toggle" id="mobile-menu">
-                <i class="fas fa-bars"></i>
-            </div>
+        <nav aria-label="主导航">
+            <button class="menu-toggle" id="mobile-menu" type="button" aria-label="打开导航菜单" aria-controls="nav-list" aria-expanded="false">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
             <ul id="nav-list">
                 <li><a href="main.html">首页</a></li>
                 <li><a href="faq.html">常见问题</a></li>
@@ -37,7 +37,7 @@
     </footer>
     <script src="script.js" defer></script>
     <script defer src="/_vercel/insights/script.js"></script>
-    <a href="main.html" class="back-to-home" id="backToHomeButton"><i class="fas fa-arrow-up"></i></a>
+    <a href="main.html" class="back-to-home" id="backToHomeButton" aria-label="返回首页"><i class="fas fa-arrow-up" aria-hidden="true"></i></a>
 </body>
 
 </html>

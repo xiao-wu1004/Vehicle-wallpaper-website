@@ -1,480 +1,623 @@
-/* 引入 Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
-/* 整体页面背景 */
+:root {
+    --page-bg-start: #e6f3ff;
+    --page-bg-end: #ffffff;
+    --surface-bg: rgba(255, 255, 255, 0.92);
+    --surface-border: rgba(255, 255, 255, 0.6);
+    --text-main: #333333;
+    --text-muted: #555555;
+    --nav-bg: #1f1f1f;
+    --nav-bg-strong: #121212;
+    --nav-hover: #4f4f4f;
+    --accent: #ffd700;
+    --accent-strong: #c9a400;
+    --primary: #007bff;
+    --primary-strong: #0056b3;
+    --error: #c62828;
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --shadow-card: 0 10px 24px rgba(0, 0, 0, 0.18);
+    --scroll-offset: 32px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
+
 body {
-    font-family: 'Roboto', sans-serif;
     margin: 0;
+    font-family: 'Roboto', sans-serif;
+    color: var(--text-main);
+    background: linear-gradient(to right, var(--page-bg-start), var(--page-bg-end));
+    overflow-x: hidden;
+}
+
+body.scroll-locked {
+    overflow: hidden;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+a,
+button,
+.menu-toggle,
+.nav-disclosure,
+.carousel-button,
+.image-card,
+.download-btn,
+.back-to-home,
+.form-submit {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(255, 215, 0, 0.18);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid rgba(0, 123, 255, 0.45);
+    outline-offset: 3px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     padding: 0;
-    background: linear-gradient(to right, #e6f3ff, #ffffff); /* 渐变背景色 */
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
+
 header {
-    background: #333;
-    color: #fff;
-    padding: 20px 0; /* 增加顶部和底部的内边距 */
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0.98), rgba(41, 41, 41, 0.96));
+    color: #ffffff;
+    padding: 20px 24px;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
-/* 导航栏样式 */
+h1,
+h2,
+h3,
+h4,
+p {
+    margin: 0 0 20px;
+    line-height: 1.6;
+}
+
+h1 {
+    font-size: 24px;
+    color: #ffffff;
+}
+
+h2,
+h3,
+h4,
+p,
+label,
+li {
+    color: var(--text-muted);
+}
+
 nav {
-    display: flex; /* 使用 Flexbox 进行水平排列 */
-    justify-content: center; /* 居中对齐 */
-    align-items: center; /* 垂直居中 */
-    position: relative; /* 使下拉菜单的定位有依据 */
-    margin: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    margin: 12px 0 0;
 }
 
-nav ul {
+#nav-list {
     list-style: none;
     padding: 0;
-    margin: 0; /* 清除默认 margin */
-    display: flex; /* 使用 Flexbox 进行水平排列 */
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
 }
-
-nav ul.active { /* 添加控制状态 */
-    display: flex; /* 显示菜单 */
-}
-
 
 nav ul li {
-    display: inline-block; /* 使用 inline-block 使得 li 元素可设置宽高 */
-    position: relative; /* 使子菜单使用绝对定位 */
-    margin: 0 15px;
+    position: relative;
 }
 
-/* 导航链接样式 */
-nav ul li a {
-    color: #fff;
+nav ul li > a,
+.nav-item-row > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    color: #ffffff;
     text-decoration: none;
-    padding: 10px 15px; /* 添加内边距，使链接区域更大 */
-    transition: background-color 0.3s, color 0.3s, transform 0.3s; /* 添加过渡效果 */
-    border-radius: 5px; /* 圆角 */
+    border-radius: 999px;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-nav ul li a:hover, 
-nav ul li a.active {
-    background-color: #555; /* 悬停或活动状态时改变背景颜色 */
-    color: #FFD700; /* 活动状态改变文字颜色 */
+nav ul li > a:hover,
+nav ul li > a.active,
+.nav-item-row > a:hover,
+.nav-item-row > a.active {
+    background-color: var(--nav-hover);
+    color: var(--accent);
+}
+
+.nav-item-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.menu-toggle,
+.nav-disclosure {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.menu-toggle:hover,
+.nav-disclosure:hover,
+.menu-toggle[aria-expanded="true"],
+.nav-disclosure[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-disclosure i {
+    transition: transform 0.2s ease;
 }
 
 nav ul li .dropdown {
-    display: none; /* 默认隐藏下拉菜单 */
-    position: absolute; /* 绝对定位 */
-    background-color: #333; /* 下拉菜单背景色 */
-    z-index: 1000; /* 确保在最上层 */
-    border-radius: 5px; /* 圆角 */
-    margin-top: 5px; /* 下拉菜单与父元素的间距 */
-    min-width: 150px; /* 下拉菜单最小宽度 */
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 10px);
+    transform: translateX(-50%);
+    min-width: 170px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(18, 18, 18, 0.97);
+    box-shadow: var(--shadow-card);
+    z-index: 1000;
 }
 
-nav ul li:hover .dropdown,
-nav ul li:focus-within .dropdown {
-    display: block; /* 悬停/点击父元素时显示下拉菜单 */
+nav ul li:hover > .dropdown,
+nav ul li:focus-within > .dropdown {
+    display: grid;
+    gap: 6px;
 }
 
 nav ul li .dropdown a {
-    display: block; /* 下拉菜单项占据整行 */
-    padding: 10px 15px; /* 内边距 */
-    transition: background-color 0.3s; /* 添加过渡效果 */
+    display: block;
+    min-height: 44px;
+    padding: 10px 14px;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-nav ul li .dropdown a:hover {
-    background-color: #444; /* 悬停下拉项时改变背景 */
+nav ul li .dropdown a:hover,
+nav ul li .dropdown a.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: var(--accent);
 }
 
-/* 汉堡菜单样式 */
-.menu-toggle {
-    display: none; /* 默认隐藏 */
-    cursor: pointer; /* 鼠标悬停时显示为手形 */
-    
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-    nav {
-        justify-content: space-between; /* 在小屏幕上，空间分开汉堡菜单和链接 */
-        align-items: center; /* 垂直居中 */
-    }
-    nav ul {
-        display: none; /* 在小屏幕上隐藏导航链接 */
-        flex-direction: column; /* 垂直排列 */
-        width: 100%; /* 占满宽度 */
-        position: absolute; /* 绝对定位 */
-        top: 60px; /* 导航条底部 */
-        left: 0; /* 左侧对齐 */
-        background-color: #333; /* 背景颜色 */
-    }
-
-    .menu-toggle {
-        display: block; /* 显示汉堡菜单 */
-        font-size: 24px; /* 汉堡菜单图标大小 */
-        color: white; /* 汉堡菜单图标颜色 */
-    }
-
-    nav ul.active {
-        display: flex;
-    }
-    /* 移动端菜单展开时，下拉项直接显示 */
-    nav ul li .dropdown {
-        position: static;
-        display: none;
-        box-shadow: none;
-        border-radius: 0;
-        margin-top: 0;
-        min-width: auto;
-        background-color: #444;
-    }
-    nav ul li:hover .dropdown,
-    nav ul li:focus-within .dropdown {
-        display: block;
-    }
-}
-
-
-/* 主体内容样式 */
 .brand-navigation {
-    margin: 20px 0;
-    text-align: center; /* 居中 */
+    margin: 20px 0 28px;
+    padding: 0 24px;
+    text-align: center;
 }
 
 .brand-navigation h3 {
-    margin-bottom: 15px;
-    font-weight: 500; /* 加粗标题，提升可读性 */
-    font-size: 1.5em; /* 增加标题的字体大小 */
+    font-size: 1.45rem;
+    font-weight: 500;
 }
 
-.brand-navigation ul {
+.brand-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
     list-style: none;
     padding: 0;
-    display: flex; /* 使用 Flexbox 进行水平排列 */
-    justify-content: center; /* 居中对齐 */
+    margin: 0;
 }
 
-.brand-navigation ul li {
-    position: relative; /* 使子菜单有依据 */
-    margin: 0 15px; /* 容器间隔 */
-}
-
-.brand-navigation ul li a {
-    color: #333;
+.brand-chip-list a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--text-main);
     text-decoration: none;
-    padding: 10px 20px; /* 内边距 */
-    border: 1px solid transparent;
-    border-radius: 5px;
-    background-color: #eaeaea; /* 默认背景色 */
-    transition: background-color 0.3s, color 0.3s; /* 过渡效果 */
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.brand-navigation ul li a:hover {
-    background-color: #555; /* 悬停时变色 */
-    color: #fff; /* 悬停时文字颜色 */
+.brand-chip-list a:hover,
+.brand-chip-list a:focus-visible {
+    background: #555555;
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
-.brand-navigation ul li .dropdown {
-    display: none; /* 默认隐藏下拉菜单 */
-    position: absolute; /* 绝对定位下拉菜单 */
-    background-color: #fff; /* 下拉菜单背景色 */
-    border: 1px solid #ccc; /* 边框 */
-    border-radius: 5px; /* 圆角 */
-    z-index: 1000; /* 确保在最上层 */
-    left: 0; /* 调整位置 */
-    top: 100%; /* 下拉菜单显示在主链接下方 */
-    margin-top: 5px; /* 下拉菜单与父元素的间距 */
-    padding: 0; /* 移除额外填充 */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
-}
-
-.brand-navigation ul li:hover .dropdown {
-    display: flex; /* 悬停时以 Flexbox 显示下拉菜单 */
-    flex-direction: row; /* 子菜单水平排列 */
-}
-
-.brand-navigation ul li .dropdown a {
-    display: block; /* 使每个下拉项占据整行 */
-    padding: 10px; /* 内边距 */
-    color: #333; /* 字体颜色 */
-}
-
-.brand-navigation ul li .dropdown a:hover {
-    background-color: gray; /* 悬停下拉项时变色 */
-}
-
-/* 轮播图样式 */
 .carousel {
     position: relative;
     width: 100%;
-    height: 600px; /* 设置固定高度 */
-    overflow: hidden; /* 隐藏超出部分 */
+    height: 600px;
+    overflow: hidden;
 }
 
 .carousel-image {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover; /* 保持比例，裁剪多余的部分 */
-    position: absolute;
+    object-fit: cover;
     opacity: 0;
-    transition: opacity 1s; /* 添加过渡效果 */
-}
-
-.carousel-image.active {
-    opacity: 1; /* 仅显示活动图像 */
+    transition: opacity 0.6s ease;
 }
 
 .carousel-button {
     position: absolute;
     top: 50%;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.72);
+    color: #333333;
+    font-size: 28px;
+    cursor: pointer;
     transform: translateY(-50%);
-    background-color: rgba(255, 255, 255, 0.5); /* 半透明背景 */
-    border: none;
-    color: #333; /* 按钮文字颜色 */
-    font-size: 30px; /* 字体大小 */
-    padding: 10px; /* 内边距 */
-    cursor: pointer; /* 鼠标悬停显示为手形 */
-    border-radius: 5px; /* 圆角 */
-    transition: background-color 0.3s; /* 过渡效果 */
-    z-index: 10; /* 确保在图像之上 */
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.carousel-button:hover {
-    background-color: rgba(255, 255, 255, 0.8); /* 悬停时背景颜色变化 */
+.carousel-button:hover,
+.carousel-button:active {
+    background: rgba(255, 255, 255, 0.96);
+    color: #111111;
 }
 
 .carousel-button.left {
-    left: 10px; /* 左侧位置 */
+    left: 16px;
 }
 
 .carousel-button.right {
-    right: 10px; /* 右侧位置 */
+    right: 16px;
 }
 
+section[id],
+.brand-gallery {
+    scroll-margin-top: var(--scroll-offset);
+}
 
+.brand-gallery {
+    margin-bottom: 28px;
+}
 
+.brand-gallery h4 {
+    padding: 0 24px;
+    font-size: 1.2rem;
+    color: var(--text-main);
+}
 
-/* 图片展示样式 */
 .image-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)); /* 每行展示2个图片，适配不同宽度 */
-    gap: 30px; /* 项目间的间距 */
-    padding: 0 30px; /* 内容边距 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    padding: 0 24px;
 }
 
-.image-grid img {
-    width: 100%; /* 确保图片填满容器 */
-    height: 400px; /* 固定高度，确保所有图片高度一致 */
-    object-fit: cover; /* 保持图片比例，裁剪多余的部分 */
-    border-radius: 8px; /* 圆角 */
-    transition: transform 0.3s ease, box-shadow 0.3s ease; /* 添加缩放和阴影过渡效果 */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.8); /* 卡片的阴影效果 */
+.image-card {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
 }
 
-/* 鼠标悬停时的效果 */
-.image-grid img:hover {
-    transform: scale(1.05); /* 鼠标悬停时放大 */
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* 增加阴影强度 */
+.image-card img {
+    width: 100%;
+    height: clamp(220px, 28vw, 400px);
+    object-fit: cover;
+    border-radius: 18px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* 下载按钮样式 */
+.image-card:hover img,
+.image-card:focus-visible img {
+    transform: scale(1.02);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
 .download-btn {
-    display: inline-block;
-    background-color: #007BFF; /* 按钮背景颜色 */
-    color: #FFD700; /* 设置为亮黄色，增强对比度 */
-    padding: 10px 20px; /* 改善内边距 */
-    border-radius: 5px; /* 圆角 */
-    text-decoration: none; /* 去掉下划线 */
-    margin-top: 10px; /* 按钮与图片的间距 */
-    transition: background-color 0.3s; /* 背景颜色过渡效果 */
-    text-align: center; /* 文字居中 */
-    font-size: 16px; /* 字体大小 */
-    white-space: nowrap; /* 防止文字换行 */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* 添加阴影，让按钮更醒目 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 12px 24px;
+    border-radius: 999px;
+    background-color: var(--primary);
+    color: #ffffff;
+    text-decoration: none;
+    text-align: center;
+    font-size: 16px;
+    box-shadow: 0 10px 18px rgba(0, 123, 255, 0.22);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.download-btn:hover {
-    background-color: #0056b3; /* 悬停时的背景颜色 */
-    color: #FFFFFF; /* 悬停时文字颜色改为亮白 */
+.download-btn:hover,
+.download-btn:focus-visible {
+    background-color: var(--primary-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 24px rgba(0, 86, 179, 0.25);
 }
 
-
-
-
-
-
-/* 底部样式 */
 footer {
-    background: #333; /* 背景色 */
-    color: #fff; /* 字体颜色 */
-    padding: 20px 0; /* 内边距 */
-    text-align: center; /* 内容居中 */
+    background: #333333;
+    color: #ffffff;
+    padding: 20px 24px;
+    text-align: center;
 }
 
-/* 页脚链接样式 */
 footer a {
-    color: #007BFF; /* 链接颜色 */
-    text-decoration: none; /* 去掉下划线 */
-    font-size: 16px; /* 字体大小 */
-    font-family: 'Arial', sans-serif; /* 字体家族 */
-    transition: color 0.3s ease; /* 颜色过渡效果 */
+    color: #8cc2ff;
+    text-decoration: none;
+    transition: color 0.2s ease;
 }
 
-/* 鼠标悬停时的样式 */
-footer a:hover {
-    color: #0056b3; /* 悬停时的颜色 */
-    text-decoration: underline; /* 添加下划线 */
+footer a:hover,
+footer a:focus-visible {
+    color: #cfe4ff;
+    text-decoration: underline;
 }
 
-/* 页脚文本样式 */
 footer p {
-    font-size: 14px; /* 字体大小 */
-    color: #6c757d; /* 文本颜色 */
-    margin: 5px 0; /* 上下边距 */
+    margin: 6px 0;
+    color: #b4bdc7;
 }
 
-
-
-.social-media {
-    margin-top: 10px; /* 上间距 */
+#about,
+#contact,
+#feedback {
+    margin: 20px;
+    padding: 24px;
+    border-radius: 16px;
+    background-color: var(--surface-bg);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--shadow-soft);
 }
 
-.social-media h4 {
-    margin: 10px 0; /* 标题上下 margin */
+#about h3,
+#contact h3,
+#feedback h3,
+#about h2,
+#contact h2,
+#feedback h2 {
+    color: var(--text-main);
 }
 
-.social-media a {
-    color: #fff; /* 图标颜色 */
-    margin: 0 10px; /* 图标间距 */
-    font-size: 20px; /* 图标大小 */
+#about blockquote,
+#feedback blockquote {
+    margin: 0;
+    padding: 16px 18px;
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+    background: rgba(249, 249, 249, 0.96);
 }
 
-
-.about text {
-    margin-bottom: 10px;
+#contact label {
+    display: inline-block;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: var(--text-main);
 }
 
+.form-field {
+    margin-bottom: 18px;
+}
 
+#contact input[type="text"],
+#contact input[type="email"],
+#contact textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #c7d2db;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--text-main);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
 
-/* 模态框样式优化 */
+#contact input[type="text"]:focus,
+#contact input[type="email"]:focus,
+#contact textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12);
+    outline: none;
+}
+
+#contact input[aria-invalid="true"],
+#contact textarea[aria-invalid="true"] {
+    border-color: var(--error);
+    box-shadow: 0 0 0 4px rgba(198, 40, 40, 0.14);
+}
+
+.field-error {
+    min-height: 20px;
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: var(--error);
+}
+
+.form-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 12px 24px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.form-submit:hover,
+.form-submit:focus-visible {
+    background: var(--primary-strong);
+    transform: translateY(-1px);
+}
+
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    z-index: 1400;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 72px 24px 32px;
     overflow: auto;
-    background-color: rgba(0, 0, 0, 0.7);
+    overscroll-behavior: contain;
+    background-color: rgba(0, 0, 0, 0.82);
     opacity: 0;
-    transition: opacity 0.3s ease; /* 优化过渡时间，让显示和隐藏更平滑 */
+    transition: opacity 0.25s ease;
 }
 
 .modal.show {
-    display: block;
+    display: flex;
     opacity: 1;
 }
 
-/* 双图层容器：模糊缩略图 + 高清交叉淡入 */
 .modal-image-container {
     position: relative;
-    width: 90vw;
-    height: 80vh;
-    margin: auto;
+    width: min(90vw, 1200px);
+    height: min(80vh, 720px);
     overflow: hidden;
 }
 
-.modal-placeholder {
+.modal-placeholder,
+.modal-hires {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+
+.modal-placeholder {
     filter: blur(12px);
-    transform: scale(1.05); /* 略微放大遮盖边缘毛刺 */
+    transform: scale(1.05);
 }
 
 .modal-hires {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    inset: 0;
     opacity: 0;
-    transition: opacity 0.6s ease, transform 0.3s ease;
+    transition: opacity 0.35s ease, transform 0.3s ease;
 }
 
 .modal-hires.loaded {
     opacity: 1;
 }
 
-/* 关闭按钮 — 始终可点击 */
+.modal-actions {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
 .close {
-    position: absolute;
+    position: fixed;
     top: 16px;
     right: 20px;
-    color: white;
-    font-size: 32px;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 100;
-    width: 44px;
-    height: 44px;
-    display: flex;
+    z-index: 1410;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    transition: background 0.2s;
-    touch-action: manipulation;
+    background: rgba(0, 0, 0, 0.48);
+    color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.close:hover {
+
+.close span {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.close:hover,
+.close:focus-visible {
     background: rgba(0, 0, 0, 0.7);
+    transform: scale(1.02);
 }
 
-
-#about {
-    padding: 20px;
-    background-color: rgba(255, 255, 255, 0.9); /* 背景色 */
-    border-radius: 10px; /* 圆角 */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 阴影效果 */
-}
-
-#about h3 {
-    margin-top: 20px;
-    color: #333; /* 标题颜色 */
-    font-size: 1.5em; /* 标题大小 */
-}
-
-#about ul {
-    margin: 10px 0; /* 列表与段落间隔 */
-}
-
-#about blockquote {
-    margin: 10px 0; /* 引用上下间隔 */
-    padding: 10px; /* 引用内边距 */
-    border-left: 5px solid #007bff; /* 引用左边框 */
-    background-color: #f9f9f9; /* 引用背景 */
-}
-
-
-/* 返回顶部按钮 — 暗色金属风，匹配豪车壁纸主题 */
 .back-to-home {
     position: fixed;
     right: 24px;
     bottom: 24px;
-    cursor: pointer;
-    background: rgba(51, 51, 51, 0.88);
-    color: #FFD700;
-    border-radius: 50%;
-    text-decoration: none;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
+    z-index: 1200;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 52px;
     height: 52px;
+    border-radius: 50%;
+    background: rgba(51, 51, 51, 0.88);
+    color: var(--accent);
+    text-decoration: none;
+    opacity: 0;
+    visibility: hidden;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(6px);
+    transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
 }
 
 .back-to-home.show {
@@ -482,273 +625,329 @@ footer p {
     visibility: visible;
 }
 
-.back-to-home:hover {
-    background: #FFD700;
-    color: #333;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+.back-to-home:hover,
+.back-to-home:focus-visible {
+    background: var(--accent);
+    color: #333333;
+    transform: translateY(-2px);
 }
 
-/* 图标 — 箭头撑满圆形直径 */
 .back-to-home i {
-    font-size: 52px;
+    font-size: 32px;
     line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-
-/* 表单及其容器样式 */
-#contact {
-    padding: 30px;
-    background-color: rgba(255, 255, 255, 0.9); /* 半透明背景 */
-    border-radius: 15px; /* 更圆润的圆角 */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* 更柔和的阴影效果 */
-    margin: 20px; /* 外边距 */
+body.menu-open .back-to-home,
+body.modal-open .back-to-home {
+    opacity: 0;
+    visibility: hidden;
 }
 
-/* 表单标签样式 */
-#contact label {
-    font-weight: bold;
-    margin: 10px 0 5px;
-    display: block;
-    color: #333; /* 标签颜色 */
-}
-
-/* 输入框样式 */
-#contact input[type="text"],
-#contact input[type="email"],
-#contact textarea {
-    width: 100%; 
-    padding: 12px; 
-    border: 1px solid #ccc; 
-    border-radius: 5px; 
-    margin-bottom: 15px; 
-    font-size: 16px; 
-    transition: border-color 0.3s; 
-}
-
-/* 输入框聚焦效果 */
-#contact input[type="text"]:focus,
-#contact input[type="email"]:focus,
-#contact textarea:focus {
-    border-color: #007BFF; /* 聚焦时的边框颜色 */
-    outline: none; 
-}
-
-/* 提交按钮样式 */
-#contact input[type="submit"] {
-    background-color: #007BFF; 
-    color: white; 
-    border: none; 
-    padding: 12px 20px; 
-    border-radius: 5px; 
-    font-size: 16px; 
-    cursor: pointer; 
-    transition: background-color 0.3s; 
-}
-
-/* 提交按钮悬停效果 */
-#contact input[type="submit"]:hover {
-    background-color: #0056b3; 
-}
-
-/* 反馈部分样式 */
-#feedback {
-    padding: 30px;
-    background-color: rgba(255, 255, 255, 0.9); 
-    border-radius: 15px; 
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); 
-    margin: 20px; 
-}
-
-/* 增加整体的间距和间隔 */
-h2, h3, p {
-    margin: 0 0 20px; /* 上边距和下边距 */
-    line-height: 1.6; /* 行高 */
-    color: #555; /* 文本颜色 */
-}
-
-h1 {
-    font-size: 24px; /* 标题大小 */
-    font-weight: bold; /* 加粗标题 */
-    color: white; /* 标题颜色 */
-}
-
-/* ========== 响应式设计 ========== */
-
-/* -- 平板/手机 (≤768px) -- */
 @media (max-width: 768px) {
-    /* 头部 */
-    header {
-        padding: 12px 0;
+    :root {
+        --scroll-offset: 108px;
     }
+
+    header {
+        position: sticky;
+        top: 0;
+        z-index: 1300;
+        padding: 10px 12px 12px;
+        backdrop-filter: blur(10px);
+    }
+
     h1 {
+        margin-bottom: 10px;
         font-size: 18px;
     }
 
-    /* 轮播图适配屏幕高度 */
-    .carousel {
-        height: min(600px, 35vh);
-    }
-    .carousel-button {
-        font-size: 22px;
-        padding: 8px;
+    nav {
+        justify-content: flex-end;
+        margin-top: 0;
     }
 
-    /* 图片网格 — 两列紧凑布局 */
+    .menu-toggle {
+        display: inline-flex;
+        flex-shrink: 0;
+    }
+
+    #nav-list {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 18px;
+        background: rgba(18, 18, 18, 0.98);
+        box-shadow: var(--shadow-card);
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    #nav-list.active {
+        display: flex;
+    }
+
+    nav ul li {
+        width: 100%;
+    }
+
+    nav ul li > a,
+    .nav-item-row > a {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 12px 14px;
+        border-radius: 14px;
+    }
+
+    .nav-item-row {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .nav-item-row > a {
+        flex: 1;
+    }
+
+    .nav-disclosure {
+        display: inline-flex;
+        flex-shrink: 0;
+    }
+
+    nav ul li:hover > .dropdown,
+    nav ul li:focus-within > .dropdown {
+        display: none;
+    }
+
+    nav ul li.has-children.is-open > .dropdown {
+        display: grid;
+        position: static;
+        transform: none;
+        min-width: 0;
+        margin-top: 2px;
+        padding: 6px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: none;
+        gap: 6px;
+    }
+
+    nav ul li.has-children.is-open .nav-disclosure i {
+        transform: rotate(180deg);
+    }
+
+    .brand-navigation {
+        padding: 0 12px;
+        text-align: left;
+    }
+
+    .brand-chip-list {
+        justify-content: flex-start;
+        gap: 8px;
+    }
+
+    .brand-chip-list a {
+        min-height: 44px;
+        padding: 9px 14px;
+        font-size: 14px;
+    }
+
+    .carousel {
+        height: min(420px, 38vh);
+    }
+
+    .carousel-button {
+        min-width: 48px;
+        min-height: 48px;
+        font-size: 24px;
+    }
+
+    .carousel-button.left {
+        left: 12px;
+    }
+
+    .carousel-button.right {
+        right: 12px;
+    }
+
+    .brand-gallery h4 {
+        padding: 0 12px;
+        margin-bottom: 14px;
+    }
+
     .image-grid {
-        grid-template-columns: repeat(2, 1fr);
         gap: 12px;
         padding: 0 12px;
     }
-    .image-grid img {
+
+    .image-card img {
         height: 200px;
-        border-radius: 6px;
+        border-radius: 14px;
     }
 
-    /* 品牌导航 — 去掉下拉，平铺 */
-    .brand-navigation ul {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-    .brand-navigation ul li {
-        margin: 0;
-    }
-    .brand-navigation ul li a {
-        padding: 8px 14px;
-        font-size: 14px;
-    }
-    .brand-navigation ul li .dropdown {
-        display: none !important;
+    h2 {
+        font-size: 1.3rem;
     }
 
-    /* 段落标题 */
-    h2 { font-size: 1.3em; }
-    h3 { font-size: 1.1em; }
+    h3 {
+        font-size: 1.1rem;
+    }
 
-    /* 区块 — 减小内边距 */
-    #about, #contact, #feedback {
+    #about,
+    #contact,
+    #feedback {
         margin: 12px;
         padding: 16px;
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
-    /* 表单 */
-    #contact input[type="text"],
-    #contact input[type="email"],
-    #contact textarea {
-        padding: 10px;
-        font-size: 16px; /* 防止 iOS 自动放大 */
-    }
-    #contact input[type="submit"] {
+    .form-submit {
         width: 100%;
-        padding: 14px;
-        font-size: 17px;
     }
 
-    /* 模态框 */
-    .modal-image-container {
-        width: 96vw;
-        height: 70vh;
+    .modal {
+        justify-content: flex-start;
+        gap: 0;
+        padding: max(16px, env(safe-area-inset-top)) 0 calc(92px + env(safe-area-inset-bottom));
     }
+
+    .modal-image-container {
+        width: 100vw;
+        height: calc(100vh - 132px);
+    }
+
+    .modal-actions {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.86) 28%);
+    }
+
+    .download-btn {
+        width: min(100%, 420px);
+        margin: 0 auto;
+    }
+
     .close {
-        top: 12px;
+        top: max(12px, env(safe-area-inset-top));
         right: 12px;
     }
-    .download-btn {
-        font-size: 14px;
-        padding: 8px 16px;
-    }
 
-    /* 页脚 */
     footer {
         padding: 16px 12px;
     }
-    footer a { font-size: 14px; }
 
-    /* 返回按钮 — 稍小 */
     .back-to-home {
         right: 14px;
         bottom: 14px;
         width: 44px;
         height: 44px;
     }
+
     .back-to-home i {
-        font-size: 40px;
+        font-size: 28px;
     }
 }
 
-/* -- 手机 (≤480px) -- */
 @media (max-width: 480px) {
+    header {
+        padding: 10px 10px 12px;
+    }
+
     h1 {
         font-size: 16px;
     }
 
-    /* 轮播图更矮 */
+    #nav-list {
+        left: -2px;
+        right: -2px;
+        border-radius: 16px;
+    }
+
     .carousel {
         height: 220px;
     }
+
     .carousel-button {
-        font-size: 18px;
-        padding: 6px;
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 20px;
     }
 
-    /* 图片网格 — 单列 */
     .image-grid {
         grid-template-columns: 1fr;
         gap: 10px;
         padding: 0 8px;
     }
-    .image-grid img {
+
+    .image-card img {
         height: 240px;
     }
 
-    /* 导航链接 */
-    nav ul li {
-        margin: 0 6px;
+    .brand-navigation {
+        padding: 0 8px;
     }
-    nav ul li a {
-        padding: 8px 10px;
+
+    .brand-chip-list a {
+        padding: 8px 12px;
         font-size: 13px;
     }
 
-    /* 品牌导航 */
-    .brand-navigation ul li a {
-        padding: 6px 10px;
-        font-size: 13px;
-    }
-
-    /* 区块 */
-    #about, #contact, #feedback {
+    #about,
+    #contact,
+    #feedback {
         margin: 8px;
         padding: 12px;
     }
-    #about blockquote {
-        padding: 8px;
-        font-size: 14px;
-    }
 
-    /* 表单 */
-    #contact input[type="submit"] {
+    #about blockquote,
+    #feedback blockquote {
         padding: 12px;
-        font-size: 16px;
     }
 
-    /* 返回按钮 */
+    .modal {
+        padding-top: max(12px, env(safe-area-inset-top));
+    }
+
+    .close {
+        top: max(10px, env(safe-area-inset-top));
+        right: 10px;
+        width: 44px;
+        height: 44px;
+    }
+
     .back-to-home {
         right: 10px;
         bottom: 10px;
         width: 40px;
         height: 40px;
     }
+
     .back-to-home i {
-        font-size: 36px;
+        font-size: 24px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
     }
 
-    .close {
-        top: 10px;
-        right: 10px;
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
