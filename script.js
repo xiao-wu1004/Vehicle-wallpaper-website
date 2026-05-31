@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById("myModal");
     const modalPlaceholder = document.getElementById("modalPlaceholder");
     const modalHires = document.getElementById("modalHires");
+    const modalImageContainer = document.querySelector(".modal-image-container");
     const downloadBtn = document.getElementById("downloadBtn");
     const closeBtn = document.querySelector(".close");
     const imageCards = document.querySelectorAll(".image-card");
@@ -193,6 +194,71 @@ document.addEventListener("DOMContentLoaded", function () {
     function getHiResPreviewSrc(fullSrc) {
         if (!fullSrc) return "";
         return fullSrc.replace(/\.(jpe?g|png)$/i, ".webp");
+    }
+
+    function getActiveModalImage() {
+        if (modalHires && modalHires.classList.contains("loaded") && modalHires.naturalWidth && modalHires.naturalHeight) {
+            return {
+                element: modalHires,
+                scale: modalScale
+            };
+        }
+
+        if (modalPlaceholder && modalPlaceholder.naturalWidth && modalPlaceholder.naturalHeight) {
+            return {
+                element: modalPlaceholder,
+                scale: 1.05
+            };
+        }
+
+        if (modalHires && modalHires.naturalWidth && modalHires.naturalHeight) {
+            return {
+                element: modalHires,
+                scale: modalScale
+            };
+        }
+
+        return null;
+    }
+
+    function isPointerInsideModalImage(event) {
+        if (!modalImageContainer) {
+            return false;
+        }
+
+        const activeImage = getActiveModalImage();
+        if (!activeImage) {
+            return true;
+        }
+
+        const containerRect = modalImageContainer.getBoundingClientRect();
+        const naturalWidth = activeImage.element.naturalWidth;
+        const naturalHeight = activeImage.element.naturalHeight;
+
+        if (!containerRect.width || !containerRect.height || !naturalWidth || !naturalHeight) {
+            return true;
+        }
+
+        const containerRatio = containerRect.width / containerRect.height;
+        const imageRatio = naturalWidth / naturalHeight;
+        let renderedWidth = containerRect.width;
+        let renderedHeight = containerRect.height;
+
+        if (imageRatio > containerRatio) {
+            renderedHeight = containerRect.width / imageRatio;
+        } else {
+            renderedWidth = containerRect.height * imageRatio;
+        }
+
+        renderedWidth *= activeImage.scale;
+        renderedHeight *= activeImage.scale;
+
+        const left = containerRect.left + (containerRect.width - renderedWidth) / 2;
+        const top = containerRect.top + (containerRect.height - renderedHeight) / 2;
+        const right = left + renderedWidth;
+        const bottom = top + renderedHeight;
+
+        return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
     }
 
     function preloadHiRes(card) {
@@ -459,7 +525,21 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         modal.addEventListener("click", function (event) {
-            if (event.target === modal) {
+            if (!modal.classList.contains("show")) {
+                return;
+            }
+
+            if (event.target.closest(".close") || event.target.closest(".modal-actions")) {
+                return;
+            }
+
+            const clickedInsideImageContainer = event.target.closest(".modal-image-container");
+            if (!clickedInsideImageContainer) {
+                closeModal();
+                return;
+            }
+
+            if (!isPointerInsideModalImage(event)) {
                 closeModal();
             }
         });
