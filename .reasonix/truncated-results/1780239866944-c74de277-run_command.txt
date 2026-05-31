@@ -1,0 +1,154 @@
+$ npx skills add https://github.com/Leonxlnx/taste-skill -y -g
+[exit 0]
+
+[38;5;250m███████╗██╗  ██╗██╗██╗     ██╗     ███████╗[0m
+[38;5;248m██╔════╝██║ ██╔╝██║██║     ██║     ██╔════╝[0m
+[38;5;245m███████╗█████╔╝ ██║██║     ██║     ███████╗[0m
+[38;5;243m╚════██║██╔═██╗ ██║██║     ██║     ╚════██║[0m
+[38;5;240m███████║██║  ██╗██║███████╗███████╗███████║[0m
+[38;5;238m╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝[0m
+
+[90mT[39m  [46m[30m skills [39m[49m
+[90m|[39m
+[90m|[39m  [2mTip: use the --yes (-y) and --global (-g) flags to install without prompts.[22m
+[?25l[90m|[39m
+[32mo[39m  Source: https://github.com/Leonxlnx/taste-skill.git
+[?25h[?25l[90m|[39m
+[35m•[39m  Cloning repository[999D[J[35mo[39m  Cloning repository[999D[J[35mO[39m  Cloning repository[999D[J[35m0[39m  Cloning repository[999D[J[35m•[39m  Cloning repository[999D[J[35mo[39m  Cloning repository[999D[J[35mO[39m  Cloning repository[999D[J[35m0[39m  Cloning repository[999D[J[35m•[39m  Cloning repository.[999D[J[35mo[39m  Cloning repository.[999D[J[35mO[39m  Cloning repository.[999D[J[35m0[39m  Cloning repository.[999D[J[35m•[39m  Cloning repository.[999D[J[35mo[39m  Cloning repository.[999D[J[35mO[39m  Cloning repository.[999D[J[35m0[39m  Cloning repository.[999D[J[35m•[39m  Cloning repository..[999D[J[35mo[39m  Cloning repository..[999D[J[35mO[39m  Cloning repository..[999D[J[35m0[39m  Cloning repository..[999D[J[35m•[39m  Cloning repository..[999D[J[35mo[39m  Cloning repository..[999D[J[35mO[39m  Cloning repository..[999D[J[32mo[39m  Repository cloned
+[?25h[?25l[90m|[39m
+[999D[J[32mo[39m  Found [32m13[39m skills
+[?25h[90m|[39m
+[34m•[39m  Installing all 13 skills
+[?25l[90m|[39m
+[999D[J[32mo[39m  56 agents
+[?25h[90m|[39m
+[34m•[39m  Installing to: [36mClaude Code[39m, [36mCodex[39m, [36mCursor[39m, [36mGitHub Copilot[39m, [36mOpenCode[39m, [36mTrae CN[39m
+
+[90m|[39m
+[32mo[39m  [0mInstallation Summary[0m [90m----------------------------------------------+[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\brandkit[39m[22m                                          [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\industrial-brutalist-ui[39m[22m                           [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\gpt-taste[39m[22m                                         [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\image-to-code[39m[22m                                     [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\imagegen-frontend-mobile[39m[22m                          [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\imagegen-frontend-web[39m[22m                             [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\minimalist-ui[39m[22m                                     [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\full-output-enforcement[39m[22m                           [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\redesign-existing-projects[39m[22m                        [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\high-end-visual-design[39m[22m                            [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\stitch-design-taste[39m[22m                               [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\design-taste-frontend[39m[22m                             [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[36m~\.agents\skills\design-taste-frontend-v1[39m[22m                          [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlink →[22m[2m Claude Code, Trae CN[22m                                   [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m+---------------------------------------------------------------------+[39m
+[90m|[39m
+[32mo[39m  [0mSecurity Risk Assessments[0m [90m------------------------------------------------+[39m
+[90m|[39m  [2m[22m                                                                          [90m|[39m
+[90m|[39m  [2m                            [2mGen[22m[2m               [2mSocket[22m[2m            [2mSnyk[22m[2m[22m      [90m|[39m
+[90m|[39m  [2m[36mbrandkit[39m                    [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mindustrial-brutalist-ui[39m     [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mgpt-taste[39m                   [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mimage-to-code[39m               [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mimagegen-frontend-mobile[39m    [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mimagegen-frontend-web[39m       [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mminimalist-ui[39m               [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mfull-output-enforcement[39m     [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mredesign-existing-projects[39m  [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mhigh-end-visual-design[39m      [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mstitch-design-taste[39m         [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mdesign-taste-frontend[39m       [32mSafe[39m              [32m0 alerts[39m          [32mLow Risk[39m[22m  [90m|[39m
+[90m|[39m  [2m[36mdesign-taste-frontend-v1[39m    [2m--[22m[2m                [2m--[22m[2m                [2m--[22m[2m[22m        [90m|[39m
+[90m|[39m  [2m[22m                                                                          [90m|[39m
+[90m|[39m  [2m[2mDetails:[22m[2m [2mhttps://skills.sh/Leonxlnx/taste-skill[22m[2m[22m                           [90m|[39m
+[90m|[39m  [2m[22m                                                                          [90m|[39m
+[90m+----------------------------------------------------------------------------+[39m
+[?25l[90m|[39m
+[999D[J[35m•[39m  Installing skills[999D[J[35mo[39m  Installing skills[999D[J[35mO[39m  Installing skills[999D[J[32mo[39m  Installation complete
+[?25h
+[90m|[39m
+[32mo[39m  [0m[32mInstalled 13 skills[39m[0m [90m-----------------------------------------------+[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\brandkit[22m                                        [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\industrial-brutalist-ui[22m                         [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\gpt-taste[22m                                       [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\image-to-code[22m                                   [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\imagegen-frontend-mobile[22m                        [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\imagegen-frontend-web[22m                           [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\minimalist-ui[22m                                   [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\full-output-enforcement[22m                         [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\redesign-existing-projects[22m                      [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\high-end-visual-design[22m                          [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\stitch-design-taste[22m                             [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\design-taste-frontend[22m                           [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[32m✓[39m ~\.agents\skills\design-taste-frontend-v1[22m                        [90m|[39m
+[90m|[39m  [2m  [32muniversal:[39m Codex, Cursor, GitHub Copilot, OpenCode, Amp +9 more[22m  [90m|[39m
+[90m|[39m  [2m  [2msymlinked:[22m[2m Claude Code, Trae CN[22m                                  [90m|[39m
+[90m|[39m  [2m[22m                                                                   [90m|[39m
+[90m+---------------------------------------------------------------------+[39m
+
+[90m|[39m
+[90m—[39m  [32mDone![39m[2m  Review skills before use; they run with full agent permissions.[22m
+

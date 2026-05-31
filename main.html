@@ -43,6 +43,10 @@
     }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap"></noscript>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preload" as="image" href="cars/HongQi/HongQi.webp" fetchpriority="high">
     <link rel="preload" as="image" href="cars/Xiaomi/《小米SU7Ultra》4K_3840x2160.webp" fetchpriority="high">
@@ -51,6 +55,7 @@
 </head>
 
 <body>
+    <a href="#gallery" class="skip-link">跳到内容</a>
     <header>
         <h1>欢迎来到车辆壁纸网站</h1>
         <nav aria-label="主导航">
@@ -379,7 +384,7 @@
             <span aria-hidden="true">&times;</span>
         </button>
         <div class="modal-image-container">
-            <img class="modal-placeholder" id="modalPlaceholder" alt="">
+            <img class="modal-placeholder" id="modalPlaceholder" alt="" role="presentation">
             <img class="modal-hires" id="modalHires" alt="壁纸预览">
         </div>
         <div class="modal-actions">
