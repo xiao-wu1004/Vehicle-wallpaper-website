@@ -116,3 +116,19 @@ After that, start the backend with the `mysql` profile. Flyway will create the t
 - `GET /api/catalog/wallpapers`
 - `GET /api/feedback/highlights`
 - `POST /api/feedback`
+
+## Admin APIs
+
+These endpoints are intended for the next backend management layer.
+
+- `GET /api/admin/dashboard`
+- `POST /api/admin/catalog/refresh`
+- `GET /api/admin/wallpapers`
+- `PATCH /api/admin/wallpapers/{wallpaperId}`
+- `GET /api/admin/feedback`
+- `PATCH /api/admin/feedback/{feedbackId}`
+
+Current note:
+
+- Admin APIs do not have authentication yet.
+- A practical next step is to add an admin login or API key protection layer before deploying them to a public environment.
