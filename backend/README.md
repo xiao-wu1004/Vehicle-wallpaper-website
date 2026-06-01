@@ -111,6 +111,46 @@ CREATE DATABASE IF NOT EXISTS vehicle_wallpaper
 
 After that, start the backend with the `mysql` profile. Flyway will create the tables automatically.
 
+## Import Into MySQL Or Navicat
+
+A verified MySQL dump of the current backend data is stored at:
+
+- `backend/database/vehicle_wallpaper.sql`
+
+What is inside:
+
+- Table structure for `brands`, `wallpapers`, `feedback_messages`, and `flyway_schema_history`
+- Current catalog metadata for 12 brands and 35 wallpapers
+- Current sample feedback data
+
+Import with MySQL command line:
+
+```powershell
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u your_mysql_user -p vehicle_wallpaper
+```
+
+Run that command from the repository root, then inside the MySQL client:
+
+```sql
+SOURCE backend/database/vehicle_wallpaper.sql;
+```
+
+Use it in Navicat:
+
+1. Create or open a MySQL connection.
+2. Host: `127.0.0.1`
+3. Port: `3306`
+4. Username: your local MySQL user
+5. Password: your local MySQL password
+6. If `vehicle_wallpaper` already exists in MySQL, you can view it directly in Navicat without importing again.
+7. If you want to import from file in Navicat, use `Run SQL File...` or `Import Wizard`, then select `backend/database/vehicle_wallpaper.sql`.
+
+Important note:
+
+- Navicat is a database client, not a second database engine.
+- The real data is stored in MySQL.
+- Navicat either connects to that existing MySQL database directly or imports the same SQL dump into MySQL for you.
+
 ## Main APIs
 
 - `GET /api/catalog`
@@ -143,3 +183,36 @@ Current note:
 - Open [http://localhost:8080/admin](http://localhost:8080/admin) or [http://localhost:8080/admin.html](http://localhost:8080/admin.html)
 - Enter the configured `ADMIN_API_KEY`
 - The page talks directly to the protected `/api/admin/**` endpoints for dashboard stats, catalog refresh, wallpaper edits, and feedback moderation
+
+## How To Use The Backend System
+
+Recommended daily workflow:
+
+1. Start MySQL service.
+2. Start the backend with the `mysql` profile.
+3. Open the public site at [http://localhost:8080/main.html](http://localhost:8080/main.html).
+4. Open the admin console at [http://localhost:8080/admin](http://localhost:8080/admin).
+5. Enter the same value you configured in `ADMIN_API_KEY`.
+
+What each part is for:
+
+- `main.html`: public wallpaper site
+- `/api/catalog/**`: public wallpaper data APIs
+- `/api/feedback`: public feedback submission API
+- `/admin`: admin management page
+- `/api/admin/**`: protected admin APIs for stats, sync, wallpaper edits, and feedback moderation
+
+Typical admin actions:
+
+1. Connect with the API key in the admin page.
+2. Check dashboard stats to confirm catalog and feedback counts.
+3. Use `Run catalog sync` after you add, remove, or rename images under `cars/`.
+4. Use `Wallpaper management` to update wallpaper title, sort order, and active state.
+5. Use `Feedback review` to approve, reject, or feature user feedback.
+
+How data flows:
+
+- Image files remain in `cars/`
+- The backend scans those folders and syncs metadata into MySQL
+- Public pages and admin pages both read data from backend APIs
+- Feedback submitted from the frontend is stored in MySQL and then moderated in the admin page
