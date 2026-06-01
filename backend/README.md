@@ -137,3 +137,9 @@ Current note:
 - Configure the key with environment variable `ADMIN_API_KEY`
 - If `ADMIN_API_KEY` is missing, admin APIs will return `503 Service Unavailable`
 - If the header is missing or incorrect, admin APIs will return `401 Unauthorized`
+
+## Admin Page
+
+- Open [http://localhost:8080/admin](http://localhost:8080/admin) or [http://localhost:8080/admin.html](http://localhost:8080/admin.html)
+- Enter the configured `ADMIN_API_KEY`
+- The page talks directly to the protected `/api/admin/**` endpoints for dashboard stats, catalog refresh, wallpaper edits, and feedback moderation

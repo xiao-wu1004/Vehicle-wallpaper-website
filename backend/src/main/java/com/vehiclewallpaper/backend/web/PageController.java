@@ -10,4 +10,9 @@ public class PageController {
     public String home() {
         return "redirect:/main.html";
     }
+
+    @GetMapping("/admin")
+    public String admin() {
+        return "redirect:/admin.html";
+    }
 }

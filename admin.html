@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Wallpaper Admin</title>
+    <meta name="description"
+        content="Protected admin console for the Vehicle Wallpaper project. Review catalog metadata, refresh imports, and moderate user feedback.">
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style"
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+        media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+    </noscript>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body data-api-base="">
+    <a href="#adminMain" class="skip-link">Skip to admin content</a>
+
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <div class="brand-block">
+                <p class="brand-kicker">Vehicle Wallpaper</p>
+                <h1>Admin Console</h1>
+                <p>One protected workspace for catalog operations, feedback moderation, and quick checks on site health.
+                </p>
+            </div>
+
+            <nav class="admin-nav" aria-label="Admin sections">
+                <a href="#overview">Overview</a>
+                <a href="#catalog">Catalog</a>
+                <a href="#feedback">Feedback</a>
+            </nav>
+
+            <section class="sidebar-panel" aria-labelledby="authPanelTitle">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Protected Access</p>
+                        <h2 id="authPanelTitle">API Key Session</h2>
+                    </div>
+                    <span class="status-pill is-idle" id="connectionStatus">Disconnected</span>
+                </div>
+
+                <form id="authForm" class="stack-form" novalidate>
+                    <label class="field-group" for="apiKeyInput">
+                        <span>Admin API Key</span>
+                        <div class="input-row">
+                            <input type="password" id="apiKeyInput" name="apiKey" autocomplete="current-password"
+                                placeholder="Enter the value used for X-Admin-API-Key">
+                            <button type="button" class="secondary-button icon-button" id="toggleApiKeyButton"
+                                aria-label="Show API key">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </label>
+
+                    <label class="checkbox-row" for="rememberKeyCheckbox">
+                        <input type="checkbox" id="rememberKeyCheckbox" name="rememberKey">
+                        <span>Remember this key in this browser</span>
+                    </label>
+
+                    <div class="button-row">
+                        <button type="submit" class="primary-button" id="connectButton">Connect</button>
+                        <button type="button" class="secondary-button" id="clearKeyButton">Clear</button>
+                    </div>
+
+                    <p class="support-copy">Every request is sent with the <code>X-Admin-API-Key</code> header. If the
+                        key is missing or incorrect, the admin APIs return <code>401 Unauthorized</code>.</p>
+                </form>
+            </section>
+
+            <section class="sidebar-panel" aria-labelledby="shortcutPanelTitle">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Shortcuts</p>
+                        <h2 id="shortcutPanelTitle">Quick Links</h2>
+                    </div>
+                </div>
+                <div class="shortcut-list">
+                    <a class="shortcut-link" href="main.html">
+                        <span>Open frontend home</span>
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    </a>
+                    <a class="shortcut-link" href="faq.html">
+                        <span>Open FAQ page</span>
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </section>
+        </aside>
+
+        <main id="adminMain" class="admin-main">
+            <section class="hero-panel" id="overview">
+                <div class="hero-copy">
+                    <p class="eyebrow">Operations Surface</p>
+                    <h2>Run the site like a product, not just a static page.</h2>
+                    <p>This console talks directly to the protected <code>/api/admin/**</code> endpoints. Once the key
+                        is valid, you can review metrics, maintain wallpaper metadata, and moderate highlighted user
+                        feedback without leaving the browser.</p>
+                </div>
+                <div class="hero-actions">
+                    <button type="button" class="primary-button" id="refreshAllButton">
+                        <i class="fas fa-rotate-right" aria-hidden="true"></i>
+                        <span>Refresh all data</span>
+                    </button>
+                    <p class="hero-meta">Last catalog sync: <span id="lastSyncTime">Not loaded yet</span></p>
+                </div>
+            </section>
+
+            <section class="notice-banner" id="noticeBanner" role="status" aria-live="polite"></section>
+
+            <section class="metric-grid" aria-label="Admin metrics">
+                <article class="metric-card">
+                    <p>Total brands</p>
+                    <strong id="metricTotalBrands">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Total wallpapers</p>
+                    <strong id="metricTotalWallpapers">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Active wallpapers</p>
+                    <strong id="metricActiveWallpapers">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Inactive wallpapers</p>
+                    <strong id="metricInactiveWallpapers">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Pending feedback</p>
+                    <strong id="metricPendingFeedback">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Approved feedback</p>
+                    <strong id="metricApprovedFeedback">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Rejected feedback</p>
+                    <strong id="metricRejectedFeedback">--</strong>
+                </article>
+                <article class="metric-card">
+                    <p>Featured feedback</p>
+                    <strong id="metricFeaturedFeedback">--</strong>
+                </article>
+            </section>
+
+            <section class="workspace-panel" id="catalog" aria-labelledby="catalogTitle">
+                <div class="workspace-header">
+                    <div>
+                        <p class="eyebrow">Catalog</p>
+                        <h2 id="catalogTitle">Wallpaper management</h2>
+                        <p>Filter by brand or state, inspect preview assets, and update title, sort order, or active
+                            status.</p>
+                    </div>
+                    <button type="button" class="secondary-button" id="refreshCatalogButton">
+                        <i class="fas fa-arrows-rotate" aria-hidden="true"></i>
+                        <span>Run catalog sync</span>
+                    </button>
+                </div>
+
+                <div class="workspace-tools">
+                    <label class="field-group compact-field" for="wallpaperBrandFilter">
+                        <span>Brand</span>
+                        <select id="wallpaperBrandFilter">
+                            <option value="">All brands</option>
+                        </select>
+                    </label>
+                    <label class="field-group compact-field" for="wallpaperActiveFilter">
+                        <span>Status</span>
+                        <select id="wallpaperActiveFilter">
+                            <option value="">All statuses</option>
+                            <option value="true">Active only</option>
+                            <option value="false">Inactive only</option>
+                        </select>
+                    </label>
+                    <label class="field-group compact-field search-field" for="wallpaperSearchInput">
+                        <span>Search</span>
+                        <input type="search" id="wallpaperSearchInput" placeholder="Search by title, file name, or slug">
+                    </label>
+                </div>
+
+                <div class="workspace-grid">
+                    <div class="surface-panel">
+                        <div class="surface-header">
+                            <h3>Wallpaper list</h3>
+                            <p id="wallpaperListSummary">Connect to load data</p>
+                        </div>
+                        <div class="entity-list" id="wallpaperList" aria-live="polite"></div>
+                    </div>
+
+                    <section class="surface-panel editor-panel" aria-labelledby="wallpaperEditorTitle">
+                        <div class="surface-header">
+                            <h3 id="wallpaperEditorTitle">Wallpaper editor</h3>
+                            <p id="wallpaperEditorHint">Select a wallpaper from the list to start editing.</p>
+                        </div>
+                        <form id="wallpaperEditorForm" class="editor-form" novalidate>
+                            <div class="preview-frame">
+                                <img id="wallpaperPreview" alt="" hidden>
+                                <div class="empty-preview" id="wallpaperPreviewPlaceholder">No wallpaper selected</div>
+                            </div>
+
+                            <div class="field-grid">
+                                <label class="field-group" for="wallpaperTitleInput">
+                                    <span>Title</span>
+                                    <input type="text" id="wallpaperTitleInput" maxlength="255" disabled>
+                                </label>
+                                <label class="field-group" for="wallpaperSortInput">
+                                    <span>Sort order</span>
+                                    <input type="number" id="wallpaperSortInput" min="1" step="1" disabled>
+                                </label>
+                                <label class="field-group readonly-field">
+                                    <span>Brand</span>
+                                    <input type="text" id="wallpaperBrandDisplay" readonly disabled>
+                                </label>
+                                <label class="field-group readonly-field">
+                                    <span>File name</span>
+                                    <input type="text" id="wallpaperFileNameDisplay" readonly disabled>
+                                </label>
+                            </div>
+
+                            <label class="checkbox-row editor-toggle" for="wallpaperActiveInput">
+                                <input type="checkbox" id="wallpaperActiveInput" disabled>
+                                <span>Keep this wallpaper active</span>
+                            </label>
+
+                            <div class="editor-meta" id="wallpaperMeta"></div>
+
+                            <div class="button-row">
+                                <button type="submit" class="primary-button" id="saveWallpaperButton" disabled>Save
+                                    wallpaper</button>
+                                <a id="wallpaperDownloadLink" class="secondary-button link-button" href="#"
+                                    target="_blank" rel="noopener" hidden>Open full image</a>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </section>
+
+            <section class="workspace-panel" id="feedback" aria-labelledby="feedbackTitle">
+                <div class="workspace-header">
+                    <div>
+                        <p class="eyebrow">Moderation</p>
+                        <h2 id="feedbackTitle">Feedback review</h2>
+                        <p>Inspect submissions, update their review status, and control which entries become featured
+                            highlights on the public site.</p>
+                    </div>
+                </div>
+
+                <div class="workspace-tools">
+                    <label class="field-group compact-field" for="feedbackStatusFilter">
+                        <span>Status</span>
+                        <select id="feedbackStatusFilter">
+                            <option value="">All statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </label>
+                    <label class="field-group compact-field" for="feedbackFeaturedFilter">
+                        <span>Featured</span>
+                        <select id="feedbackFeaturedFilter">
+                            <option value="">All entries</option>
+                            <option value="true">Featured only</option>
+                            <option value="false">Not featured</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="workspace-grid">
+                    <div class="surface-panel">
+                        <div class="surface-header">
+                            <h3>Feedback list</h3>
+                            <p id="feedbackListSummary">Connect to load data</p>
+                        </div>
+                        <div class="entity-list feedback-list" id="feedbackList" aria-live="polite"></div>
+                    </div>
+
+                    <section class="surface-panel editor-panel" aria-labelledby="feedbackEditorTitle">
+                        <div class="surface-header">
+                            <h3 id="feedbackEditorTitle">Review details</h3>
+                            <p id="feedbackEditorHint">Select one submission to update its status and featured flag.</p>
+                        </div>
+                        <form id="feedbackEditorForm" class="editor-form" novalidate>
+                            <div class="field-grid">
+                                <label class="field-group readonly-field">
+                                    <span>Submitted by</span>
+                                    <input type="text" id="feedbackNameDisplay" readonly disabled>
+                                </label>
+                                <label class="field-group readonly-field">
+                                    <span>Email</span>
+                                    <input type="text" id="feedbackEmailDisplay" readonly disabled>
+                                </label>
+                                <label class="field-group" for="feedbackStatusInput">
+                                    <span>Review status</span>
+                                    <select id="feedbackStatusInput" disabled>
+                                        <option value="PENDING">Pending</option>
+                                        <option value="APPROVED">Approved</option>
+                                        <option value="REJECTED">Rejected</option>
+                                    </select>
+                                </label>
+                                <label class="field-group readonly-field">
+                                    <span>Source page</span>
+                                    <input type="text" id="feedbackSourceDisplay" readonly disabled>
+                                </label>
+                            </div>
+
+                            <label class="field-group" for="feedbackMessageDisplay">
+                                <span>Message</span>
+                                <textarea id="feedbackMessageDisplay" rows="7" readonly disabled></textarea>
+                            </label>
+
+                            <label class="checkbox-row editor-toggle" for="feedbackFeaturedInput">
+                                <input type="checkbox" id="feedbackFeaturedInput" disabled>
+                                <span>Feature this feedback on the public site</span>
+                            </label>
+
+                            <div class="editor-meta" id="feedbackMeta"></div>
+
+                            <div class="button-row">
+                                <button type="submit" class="primary-button" id="saveFeedbackButton" disabled>Save
+                                    review</button>
+                                <button type="button" class="secondary-button" id="approveFeedbackButton"
+                                    disabled>Quick approve</button>
+                                <button type="button" class="secondary-button danger-button" id="rejectFeedbackButton"
+                                    disabled>Quick reject</button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="admin.js" defer></script>
+</body>
+
+</html>
