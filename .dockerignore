@@ -1,0 +1,8 @@
+.git
+.gitignore
+backend/target
+backend/data
+backend/database
+.codex-browser-profile
+.codex-temp-admin.png
+.codex-temp-admin-connected.png

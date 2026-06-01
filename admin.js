@@ -85,8 +85,10 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     function getApiBase() {
-        const configuredApiBase = body.getAttribute("data-api-base") || "";
-        return (configuredApiBase || defaultApiBase).replace(/\/$/, "");
+        const configuredApiBase = body.getAttribute("data-api-base")
+            || (window.VEHICLE_WALLPAPER_CONFIG && window.VEHICLE_WALLPAPER_CONFIG.apiBase)
+            || "";
+        return (String(configuredApiBase).trim() || defaultApiBase).replace(/\/$/, "");
     }
 
     function buildApiUrl(path) {

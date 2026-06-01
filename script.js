@@ -457,9 +457,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function getApiBase() {
-        const configuredApiBase = body.getAttribute("data-api-base") || "";
+        const configuredApiBase = body.getAttribute("data-api-base")
+            || (window.VEHICLE_WALLPAPER_CONFIG && window.VEHICLE_WALLPAPER_CONFIG.apiBase)
+            || "";
         if (configuredApiBase) {
-            return configuredApiBase.replace(/\/$/, "");
+            return String(configuredApiBase).trim().replace(/\/$/, "");
         }
 
         return defaultApiBase;
