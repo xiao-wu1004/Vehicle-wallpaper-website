@@ -18,7 +18,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
     const form = document.querySelector("#contact form");
+    const feedbackBlockquote = document.querySelector("#feedback blockquote");
     const internalHashLinks = document.querySelectorAll('a[href^="#"]');
+    const defaultApiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
 
     const brandHashes = new Set([
         "#brands",
@@ -423,6 +425,100 @@ document.addEventListener("DOMContentLoaded", function () {
         return true;
     }
 
+    function ensureFormStatusElement(formElement) {
+        if (!formElement) return null;
+
+        let statusElement = formElement.querySelector(".form-status");
+        if (statusElement) {
+            return statusElement;
+        }
+
+        statusElement = document.createElement("p");
+        statusElement.className = "form-status";
+        statusElement.setAttribute("role", "status");
+        statusElement.setAttribute("aria-live", "polite");
+        formElement.appendChild(statusElement);
+        return statusElement;
+    }
+
+    function setFormStatus(statusElement, message, type) {
+        if (!statusElement) return;
+
+        statusElement.textContent = message || "";
+        statusElement.classList.remove("is-success", "is-error");
+
+        if (type === "success") {
+            statusElement.classList.add("is-success");
+        }
+
+        if (type === "error") {
+            statusElement.classList.add("is-error");
+        }
+    }
+
+    function getApiBase() {
+        const configuredApiBase = body.getAttribute("data-api-base") || "";
+        if (configuredApiBase) {
+            return configuredApiBase.replace(/\/$/, "");
+        }
+
+        return defaultApiBase;
+    }
+
+    function buildApiUrl(path) {
+        return `${getApiBase()}${path}`;
+    }
+
+    function applyServerFieldErrors(fields, fieldErrors) {
+        if (!fieldErrors) {
+            return;
+        }
+
+        fields.forEach(function (field) {
+            const serverMessage = fieldErrors[field.element.id];
+            if (serverMessage) {
+                setFieldState(field, serverMessage);
+            }
+        });
+    }
+
+    function renderFeedbackHighlights(items) {
+        if (!feedbackBlockquote || !Array.isArray(items) || items.length === 0) {
+            return;
+        }
+
+        feedbackBlockquote.innerHTML = "";
+
+        items.slice(0, 2).forEach(function (item) {
+            const paragraph = document.createElement("p");
+            paragraph.textContent = `"${item.message}" - ${item.name}`;
+            feedbackBlockquote.appendChild(paragraph);
+        });
+    }
+
+    function loadFeedbackHighlights() {
+        if (!feedbackBlockquote) {
+            return;
+        }
+
+        fetch(buildApiUrl("/api/feedback/highlights"), {
+            headers: {
+                Accept: "application/json"
+            }
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Failed to load feedback highlights");
+                }
+
+                return response.json();
+            })
+            .then(renderFeedbackHighlights)
+            .catch(function () {
+                // Keep the static fallback quotes when the backend is unavailable.
+            });
+    }
+
     if (mobileMenu && navList) {
         mobileMenu.addEventListener("click", toggleMenu);
     }
@@ -589,6 +685,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (form) {
+        const submitButton = form.querySelector(".form-submit");
+        const formStatus = ensureFormStatusElement(form);
         const fields = [
             {
                 element: document.getElementById("name"),
@@ -616,7 +714,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
 
-        form.addEventListener("submit", function (event) {
+        form.addEventListener("submit", async function (event) {
             let firstInvalidField = null;
 
             fields.forEach(function (field) {
@@ -633,10 +731,64 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             event.preventDefault();
-            form.reset();
-            fields.forEach(function (field) {
-                setFieldState(field, "");
-            });
+            setFormStatus(formStatus, "", "");
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.setAttribute("aria-busy", "true");
+            }
+
+            try {
+                const response = await fetch(buildApiUrl("/api/feedback"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify({
+                        name: document.getElementById("name").value.trim(),
+                        email: document.getElementById("email").value.trim(),
+                        message: document.getElementById("message").value.trim(),
+                        page: window.location.pathname || "/main.html"
+                    })
+                });
+
+                const result = await response.json().catch(function () {
+                    return {};
+                });
+
+                if (!response.ok) {
+                    applyServerFieldErrors(fields, result.fieldErrors);
+                    setFormStatus(
+                        formStatus,
+                        result.message || "提交失败，请稍后再试。",
+                        "error"
+                    );
+                    return;
+                }
+
+                form.reset();
+                fields.forEach(function (field) {
+                    setFieldState(field, "");
+                });
+                setFormStatus(
+                    formStatus,
+                    result.message || "反馈已提交，感谢你的建议。",
+                    "success"
+                );
+                loadFeedbackHighlights();
+            } catch (error) {
+                setFormStatus(
+                    formStatus,
+                    "暂时无法连接后端服务，请确认 Java 后端已经启动。",
+                    "error"
+                );
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.removeAttribute("aria-busy");
+                }
+            }
         });
     }
 
@@ -658,6 +810,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 0);
     }
     updateBackToHomeButton();
+    loadFeedbackHighlights();
 
     window.addEventListener("hashchange", function () {
         if (window.location.hash) {

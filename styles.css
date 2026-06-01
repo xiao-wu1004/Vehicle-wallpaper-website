@@ -542,10 +542,31 @@ footer p {
     transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
+.form-submit:disabled {
+    cursor: wait;
+    opacity: 0.7;
+    transform: none;
+}
+
 .form-submit:hover,
 .form-submit:focus-visible {
     background: var(--primary-strong);
     transform: translateY(-1px);
+}
+
+.form-status {
+    min-height: 24px;
+    margin: 12px 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.form-status.is-success {
+    color: #2e7d32;
+}
+
+.form-status.is-error {
+    color: var(--error);
 }
 
 .modal {
