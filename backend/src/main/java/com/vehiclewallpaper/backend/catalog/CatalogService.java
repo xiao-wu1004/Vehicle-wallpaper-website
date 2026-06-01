@@ -3,6 +3,8 @@ package com.vehiclewallpaper.backend.catalog;
 import com.vehiclewallpaper.backend.config.CatalogProperties;
 import com.vehiclewallpaper.backend.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -15,9 +17,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,10 +48,19 @@ public class CatalogService {
     private static final List<String> PREVIEW_EXTENSION_PRIORITY = Arrays.asList("webp", "jpg", "jpeg", "png");
 
     private final CatalogProperties catalogProperties;
+    private final BrandRepository brandRepository;
+    private final WallpaperRepository wallpaperRepository;
+    private final TransactionTemplate transactionTemplate;
     private volatile CatalogOverviewResponse cachedOverview;
 
-    public CatalogService(CatalogProperties catalogProperties) {
+    public CatalogService(CatalogProperties catalogProperties,
+                          BrandRepository brandRepository,
+                          WallpaperRepository wallpaperRepository,
+                          PlatformTransactionManager transactionManager) {
         this.catalogProperties = catalogProperties;
+        this.brandRepository = brandRepository;
+        this.wallpaperRepository = wallpaperRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
@@ -107,13 +121,13 @@ public class CatalogService {
     }
 
     public synchronized CatalogOverviewResponse refreshCatalog() {
-        Path catalogRoot = Paths.get(catalogProperties.getRootPath()).toAbsolutePath().normalize();
-        List<BrandCatalogResponse> brands = new ArrayList<BrandCatalogResponse>();
-        int totalWallpapers = 0;
+        if (catalogProperties.isSyncOnStartup()) {
+            transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
+        }
 
-        for (BrandDefinition definition : BRAND_DEFINITIONS) {
-            BrandCatalogResponse brand = loadBrandCatalog(catalogRoot, definition);
-            brands.add(brand);
+        List<BrandCatalogResponse> brands = buildBrandResponses();
+        int totalWallpapers = 0;
+        for (BrandCatalogResponse brand : brands) {
             totalWallpapers += brand.getWallpaperCount();
         }
 
@@ -142,7 +156,66 @@ public class CatalogService {
         }
     }
 
-    private BrandCatalogResponse loadBrandCatalog(Path catalogRoot, BrandDefinition definition) {
+    private List<BrandCatalogResponse> buildBrandResponses() {
+        List<BrandCatalogResponse> responses = new ArrayList<BrandCatalogResponse>();
+        List<BrandEntity> brands = brandRepository.findAllByOrderBySortOrderAsc();
+
+        for (BrandEntity brand : brands) {
+            List<WallpaperEntity> wallpaperEntities = wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId());
+            List<WallpaperResponse> wallpapers = wallpaperEntities.stream()
+                .filter(WallpaperEntity::isActive)
+                .map(this::toWallpaperResponse)
+                .collect(Collectors.toList());
+
+            String coverImageUrl = wallpapers.isEmpty() ? "" : wallpapers.get(0).getPreviewUrl();
+            responses.add(new BrandCatalogResponse(
+                brand.getSlug(),
+                brand.getDisplayName(),
+                brand.getFolderName(),
+                wallpapers.size(),
+                coverImageUrl,
+                wallpapers
+            ));
+        }
+
+        return responses;
+    }
+
+    private WallpaperResponse toWallpaperResponse(WallpaperEntity entity) {
+        return new WallpaperResponse(
+            entity.getSlug(),
+            entity.getTitle(),
+            entity.getFileName(),
+            entity.getPreviewUrl(),
+            entity.getFullUrl(),
+            entity.getDownloadUrl()
+        );
+    }
+
+    private void syncCatalogToDatabase() {
+        Path catalogRoot = Paths.get(catalogProperties.getRootPath()).toAbsolutePath().normalize();
+        Set<String> knownBrandSlugs = new LinkedHashSet<String>();
+
+        for (int index = 0; index < BRAND_DEFINITIONS.size(); index++) {
+            BrandDefinition definition = BRAND_DEFINITIONS.get(index);
+            knownBrandSlugs.add(definition.getSlug());
+
+            BrandEntity brand = brandRepository.findBySlugIgnoreCase(definition.getSlug())
+                .orElseGet(BrandEntity::new);
+
+            brand.setSlug(definition.getSlug());
+            brand.setDisplayName(definition.getDisplayName());
+            brand.setFolderName(definition.getFolderName());
+            brand.setSortOrder(index + 1);
+            brand = brandRepository.save(brand);
+
+            replaceWallpapersForBrand(catalogRoot, definition, brand);
+        }
+
+        cleanupRemovedBrands(knownBrandSlugs);
+    }
+
+    private void replaceWallpapersForBrand(Path catalogRoot, BrandDefinition definition, BrandEntity brand) {
         Path originalsDir = catalogRoot.resolve(definition.getFolderName());
         Path previewsDir = catalogRoot.resolve("_thumb").resolve(definition.getFolderName());
 
@@ -152,35 +225,40 @@ public class CatalogService {
         List<String> sortedStems = new ArrayList<String>(originalFiles.keySet());
         Collections.sort(sortedStems);
 
-        List<WallpaperResponse> wallpapers = new ArrayList<WallpaperResponse>();
-        int index = 1;
+        wallpaperRepository.deleteByBrandId(brand.getId());
 
+        List<WallpaperEntity> replacements = new ArrayList<WallpaperEntity>();
+        int index = 1;
         for (String stem : sortedStems) {
             Path originalPath = originalFiles.get(stem);
             Path previewPath = previewFiles.containsKey(stem) ? previewFiles.get(stem) : originalPath;
             String previewUrl = toPublicUrl(catalogRoot, previewPath);
             String fullUrl = toPublicUrl(catalogRoot, originalPath);
 
-            wallpapers.add(new WallpaperResponse(
-                definition.getSlug() + "-" + index,
-                definition.getDisplayName() + "壁纸" + index,
-                originalPath.getFileName().toString(),
-                previewUrl,
-                fullUrl,
-                fullUrl
-            ));
+            WallpaperEntity wallpaper = new WallpaperEntity();
+            wallpaper.setBrand(brand);
+            wallpaper.setSlug(definition.getSlug() + "-" + index);
+            wallpaper.setTitle(definition.getDisplayName() + "壁纸" + index);
+            wallpaper.setFileName(originalPath.getFileName().toString());
+            wallpaper.setPreviewUrl(previewUrl);
+            wallpaper.setFullUrl(fullUrl);
+            wallpaper.setDownloadUrl(fullUrl);
+            wallpaper.setSortOrder(index);
+            wallpaper.setActive(true);
+            replacements.add(wallpaper);
             index++;
         }
 
-        String coverImageUrl = wallpapers.isEmpty() ? "" : wallpapers.get(0).getPreviewUrl();
-        return new BrandCatalogResponse(
-            definition.getSlug(),
-            definition.getDisplayName(),
-            definition.getFolderName(),
-            wallpapers.size(),
-            coverImageUrl,
-            wallpapers
-        );
+        wallpaperRepository.saveAll(replacements);
+    }
+
+    private void cleanupRemovedBrands(Set<String> knownBrandSlugs) {
+        for (BrandEntity brand : brandRepository.findAll()) {
+            if (!knownBrandSlugs.contains(brand.getSlug())) {
+                wallpaperRepository.deleteByBrandId(brand.getId());
+                brandRepository.delete(brand);
+            }
+        }
     }
 
     private Map<String, Path> selectPreferredFiles(List<Path> files, List<String> extensionPriority) {
@@ -228,8 +306,7 @@ public class CatalogService {
     }
 
     private boolean isSupportedImageFile(Path path) {
-        String extension = extensionOf(path);
-        return ORIGINAL_EXTENSION_PRIORITY.contains(extension);
+        return ORIGINAL_EXTENSION_PRIORITY.contains(extensionOf(path));
     }
 
     private String extensionOf(Path path) {

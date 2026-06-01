@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CatalogProperties {
 
     private String rootPath = "../cars";
+    private boolean syncOnStartup = true;
 
     public String getRootPath() {
         return rootPath;
@@ -13,5 +14,13 @@ public class CatalogProperties {
 
     public void setRootPath(String rootPath) {
         this.rootPath = rootPath;
+    }
+
+    public boolean isSyncOnStartup() {
+        return syncOnStartup;
+    }
+
+    public void setSyncOnStartup(boolean syncOnStartup) {
+        this.syncOnStartup = syncOnStartup;
     }
 }

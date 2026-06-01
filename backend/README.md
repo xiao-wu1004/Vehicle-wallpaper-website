@@ -1,52 +1,118 @@
 # Vehicle Wallpaper Backend
 
-这是当前项目的 Java 后端，适合直接用 IntelliJ IDEA 打开 `backend/` 目录进行开发。
+Java backend for the vehicle wallpaper website. The project is ready to open directly in IntelliJ IDEA with Maven Wrapper.
 
-## 技术栈
+## Stack
 
 - Java 8
 - Spring Boot 2.7
 - Spring Web
 - Spring Data JPA
-- H2 文件数据库
-- Maven Wrapper
+- Flyway
+- H2 for local default development
+- MySQL 8 for formal database deployment
 
-## 已实现能力
+## What The Backend Does
 
-- `GET /` 重定向到现有前端主页 `main.html`
-- 直接托管仓库根目录下的前端文件和 `cars/` 壁纸素材
-- `GET /api/catalog` 返回完整品牌壁纸目录
-- `GET /api/catalog/brands/{brandSlug}` 返回单个品牌的壁纸列表
-- `GET /api/catalog/wallpapers` 支持按品牌和关键字搜索
-- `GET /api/feedback/highlights` 返回高亮用户反馈
-- `POST /api/feedback` 接收反馈表单并写入 H2
+- Serves the existing frontend files from the repository root
+- Serves wallpaper assets under `cars/`
+- Exposes wallpaper catalog APIs
+- Stores feedback messages in the database
+- Syncs wallpaper metadata from the filesystem into database tables on startup
 
-## 在 IDEA 中运行
+## Database Design
 
-1. 用 IDEA 打开 [`backend/pom.xml`](D:\Codes\vscodecodes\Web前端课程设计\backend\pom.xml)。
-2. 等待 Maven 依赖同步完成。
-3. 确认项目 SDK 为 Java 8。
-4. 运行 `com.vehiclewallpaper.backend.BackendApplication`。
-5. 浏览器访问 `http://localhost:8080/`。
+Current core tables are created by Flyway migration `V1__create_core_tables.sql`.
 
-## 命令行运行
+- `brands`: brand metadata
+- `wallpapers`: wallpaper metadata and file URLs
+- `feedback_messages`: feedback form submissions
 
-Windows:
+The backend keeps `cars/` as the source of truth for image files, then writes brand and wallpaper metadata into the database during startup.
+
+## Profiles
+
+The backend defaults to the `h2` profile, so IDEA can run it immediately without extra setup.
+
+- `h2`: local development profile
+- `mysql`: MySQL 8 profile
+
+Switch profiles in one of these ways:
+
+```powershell
+$env:APP_PROFILE="mysql"
+```
+
+or
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="mysql"
+```
+
+## Run In IDEA
+
+1. Open `backend/pom.xml` in IntelliJ IDEA.
+2. Set the project SDK to Java 8.
+3. Run `com.vehiclewallpaper.backend.BackendApplication`.
+
+If you want MySQL, add these environment variables to the run configuration:
+
+```text
+APP_PROFILE=mysql
+MYSQL_URL=jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+MYSQL_USER=your_mysql_user
+MYSQL_PASSWORD=your_mysql_password
+```
+
+## Run In PowerShell
+
+Default H2 mode:
 
 ```powershell
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-运行测试：
+MySQL mode:
+
+```powershell
+$env:APP_PROFILE="mysql"
+$env:MYSQL_URL="jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8"
+$env:MYSQL_USER="your_mysql_user"
+$env:MYSQL_PASSWORD="your_mysql_password"
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+Run tests:
 
 ```powershell
 cd backend
 .\mvnw.cmd test
 ```
 
-## 本地数据
+## H2 Data
 
-- H2 数据文件默认写在 `backend/data/vehicle-wallpaper*`
-- H2 控制台：`http://localhost:8080/h2-console`
-- JDBC URL：`jdbc:h2:file:./data/vehicle-wallpaper`
+- H2 file location: `backend/data/vehicle-wallpaper-dev*`
+- H2 console: [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
+- JDBC URL: `jdbc:h2:file:./data/vehicle-wallpaper-dev`
+
+## MySQL Setup
+
+Create the database first:
+
+```sql
+CREATE DATABASE IF NOT EXISTS vehicle_wallpaper
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+After that, start the backend with the `mysql` profile. Flyway will create the tables automatically.
+
+## Main APIs
+
+- `GET /api/catalog`
+- `GET /api/catalog/brands/{brandSlug}`
+- `GET /api/catalog/wallpapers`
+- `GET /api/feedback/highlights`
+- `POST /api/feedback`
