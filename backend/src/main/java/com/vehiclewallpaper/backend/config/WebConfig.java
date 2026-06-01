@@ -1,10 +1,12 @@
 package com.vehiclewallpaper.backend.config;
 
+import com.vehiclewallpaper.backend.admin.AdminApiKeyInterceptor;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -13,18 +15,28 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final FrontendProperties frontendProperties;
     private final CatalogProperties catalogProperties;
+    private final AdminApiKeyInterceptor adminApiKeyInterceptor;
 
-    public WebConfig(FrontendProperties frontendProperties, CatalogProperties catalogProperties) {
+    public WebConfig(FrontendProperties frontendProperties,
+                     CatalogProperties catalogProperties,
+                     AdminApiKeyInterceptor adminApiKeyInterceptor) {
         this.frontendProperties = frontendProperties;
         this.catalogProperties = catalogProperties;
+        this.adminApiKeyInterceptor = adminApiKeyInterceptor;
     }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
             .allowedOriginPatterns("*")
-            .allowedMethods("GET", "POST")
+            .allowedMethods("GET", "POST", "PATCH", "OPTIONS")
             .allowedHeaders("*");
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(adminApiKeyInterceptor)
+            .addPathPatterns("/api/admin/**");
     }
 
     @Override

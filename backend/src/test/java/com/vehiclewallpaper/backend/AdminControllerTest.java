@@ -22,6 +22,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class AdminControllerTest {
 
+    private static final String ADMIN_HEADER = "X-Admin-API-Key";
+    private static final String ADMIN_KEY = "test-admin-key";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -33,7 +36,8 @@ class AdminControllerTest {
 
     @Test
     void shouldExposeDashboardMetrics() throws Exception {
-        mockMvc.perform(get("/api/admin/dashboard"))
+        mockMvc.perform(get("/api/admin/dashboard")
+                .header(ADMIN_HEADER, ADMIN_KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalBrands").value(12))
             .andExpect(jsonPath("$.totalWallpapers").isNumber())
@@ -42,7 +46,8 @@ class AdminControllerTest {
 
     @Test
     void shouldRefreshCatalogFromAdminApi() throws Exception {
-        mockMvc.perform(post("/api/admin/catalog/refresh"))
+        mockMvc.perform(post("/api/admin/catalog/refresh")
+                .header(ADMIN_HEADER, ADMIN_KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalBrands").value(12))
             .andExpect(jsonPath("$.brands[0].slug").value("benz"));
@@ -53,6 +58,7 @@ class AdminControllerTest {
         WallpaperEntity wallpaper = wallpaperRepository.findAllForAdmin().get(0);
 
         mockMvc.perform(patch("/api/admin/wallpapers/{wallpaperId}", wallpaper.getId())
+                .header(ADMIN_HEADER, ADMIN_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Admin Updated Wallpaper\",\"active\":false,\"sortOrder\":99}"))
             .andExpect(status().isOk())
@@ -75,6 +81,7 @@ class AdminControllerTest {
         message = feedbackRepository.save(message);
 
         mockMvc.perform(patch("/api/admin/feedback/{feedbackId}", message.getId())
+                .header(ADMIN_HEADER, ADMIN_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"rejected\",\"featured\":true}"))
             .andExpect(status().isOk())
@@ -85,8 +92,17 @@ class AdminControllerTest {
 
     @Test
     void shouldRejectUnsupportedFeedbackStatusFilter() throws Exception {
-        mockMvc.perform(get("/api/admin/feedback").param("status", "archived"))
+        mockMvc.perform(get("/api/admin/feedback")
+                .header(ADMIN_HEADER, ADMIN_KEY)
+                .param("status", "archived"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Unsupported feedback status: archived"));
+    }
+
+    @Test
+    void shouldRejectAdminRequestWithoutApiKey() throws Exception {
+        mockMvc.perform(get("/api/admin/dashboard"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("Missing or invalid admin API key."));
     }
 }

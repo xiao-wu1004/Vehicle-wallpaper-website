@@ -1,5 +1,7 @@
 package com.vehiclewallpaper.backend.web;
 
+import com.vehiclewallpaper.backend.admin.AdminSecurityNotConfiguredException;
+import com.vehiclewallpaper.backend.admin.AdminUnauthorizedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -59,6 +61,32 @@ public class RestExceptionHandler {
             null
         );
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(AdminUnauthorizedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAdminUnauthorized(AdminUnauthorizedException exception,
+                                                                    HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+            HttpStatus.UNAUTHORIZED.value(),
+            HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+            exception.getMessage(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(AdminSecurityNotConfiguredException.class)
+    public ResponseEntity<ApiErrorResponse> handleAdminSecurityNotConfigured(AdminSecurityNotConfiguredException exception,
+                                                                             HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+            HttpStatus.SERVICE_UNAVAILABLE.value(),
+            HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase(),
+            exception.getMessage(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     @ExceptionHandler(Exception.class)

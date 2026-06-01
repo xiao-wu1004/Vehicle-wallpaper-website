@@ -62,6 +62,7 @@ APP_PROFILE=mysql
 MYSQL_URL=jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
 MYSQL_USER=your_mysql_user
 MYSQL_PASSWORD=your_mysql_password
+ADMIN_API_KEY=your_admin_api_key
 ```
 
 ## Run In PowerShell
@@ -80,6 +81,7 @@ $env:APP_PROFILE="mysql"
 $env:MYSQL_URL="jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8"
 $env:MYSQL_USER="your_mysql_user"
 $env:MYSQL_PASSWORD="your_mysql_password"
+$env:ADMIN_API_KEY="your_admin_api_key"
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
@@ -130,5 +132,8 @@ These endpoints are intended for the next backend management layer.
 
 Current note:
 
-- Admin APIs do not have authentication yet.
-- A practical next step is to add an admin login or API key protection layer before deploying them to a public environment.
+- Admin APIs are protected by API key authentication.
+- Header name: `X-Admin-API-Key`
+- Configure the key with environment variable `ADMIN_API_KEY`
+- If `ADMIN_API_KEY` is missing, admin APIs will return `503 Service Unavailable`
+- If the header is missing or incorrect, admin APIs will return `401 Unauthorized`
