@@ -187,7 +187,7 @@ Current note:
 ## Cloud Deployment
 
 - Split deployment guide: [DEPLOYMENT.md](D:\Codes\vscodecodes\Web前端课程设计\DEPLOYMENT.md:1)
-- Root Docker image for Koyeb: [Dockerfile](D:\Codes\vscodecodes\Web前端课程设计\Dockerfile:1)
+- Root Docker image for Render: [Dockerfile](D:\Codes\vscodecodes\Web前端课程设计\Dockerfile:1)
 - Frontend backend-origin switch: [api-config.js](D:\Codes\vscodecodes\Web前端课程设计\api-config.js:1)
 
 ## How To Use The Backend System
