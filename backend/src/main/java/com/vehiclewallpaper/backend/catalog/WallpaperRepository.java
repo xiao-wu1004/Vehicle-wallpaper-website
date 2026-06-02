@@ -19,6 +19,8 @@ public interface WallpaperRepository extends JpaRepository<WallpaperEntity, Long
     @Query("select wallpaper from WallpaperEntity wallpaper join fetch wallpaper.brand brand where wallpaper.id = :id")
     Optional<WallpaperEntity> findWithBrandById(@Param("id") Long id);
 
+    boolean existsBySlugIgnoreCase(String slug);
+
     @Modifying
     @Query("delete from WallpaperEntity wallpaper where wallpaper.brand.id = :brandId")
     int deleteByBrandId(@Param("brandId") Long brandId);

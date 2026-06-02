@@ -10,4 +10,6 @@ public interface BrandRepository extends JpaRepository<BrandEntity, Long> {
     List<BrandEntity> findAllByOrderBySortOrderAsc();
 
     Optional<BrandEntity> findBySlugIgnoreCase(String slug);
+
+    Optional<BrandEntity> findByFolderNameIgnoreCase(String folderName);
 }

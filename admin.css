@@ -578,12 +578,22 @@ textarea {
     gap: 1rem;
 }
 
+.catalog-management-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.85fr) minmax(19rem, 1fr) minmax(19rem, 1fr);
+    gap: 1rem;
+}
+
 .surface-panel {
     border-radius: 1.25rem;
     padding: 1rem;
     display: grid;
     gap: 1rem;
     min-height: 25rem;
+}
+
+.compact-surface {
+    min-height: 20rem;
 }
 
 .surface-header p {
@@ -746,6 +756,15 @@ textarea {
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.brand-list .entity-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.upload-panel input[type="file"] {
+    min-height: auto;
+    padding: 0.72rem 0.8rem;
+}
+
 .feedback-message {
     margin-top: 0.2rem;
     color: var(--admin-text-muted);
@@ -769,6 +788,7 @@ textarea {
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
+    .catalog-management-grid,
     .workspace-grid,
     .hero-panel {
         grid-template-columns: 1fr;
@@ -788,6 +808,7 @@ textarea {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .catalog-management-grid,
     .workspace-tools,
     .field-grid {
         grid-template-columns: 1fr;

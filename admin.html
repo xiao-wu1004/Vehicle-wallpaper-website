@@ -199,13 +199,124 @@
                     <div>
                         <p class="eyebrow">Catalog</p>
                         <h2 id="catalogTitle">Wallpaper management</h2>
-                        <p>Filter by brand or state, inspect preview assets, and update title, sort order, or active
-                            status.</p>
+                        <p>Manage brand records, upload new wallpaper files, remove outdated assets, and edit the
+                            metadata already synced into the catalog.</p>
                     </div>
                     <button type="button" class="secondary-button" id="refreshCatalogButton">
                         <i class="fas fa-arrows-rotate" aria-hidden="true"></i>
                         <span>Run catalog sync</span>
                     </button>
+                </div>
+
+                <div class="catalog-management-grid">
+                    <section class="surface-panel compact-surface" aria-labelledby="brandListTitle">
+                        <div class="surface-header">
+                            <div>
+                                <h3 id="brandListTitle">Brand list</h3>
+                                <p id="brandListSummary">Connect to load data</p>
+                            </div>
+                            <button type="button" class="secondary-button" id="createBrandButton">New brand</button>
+                        </div>
+                        <div class="entity-list brand-list" id="brandList" aria-live="polite"></div>
+                    </section>
+
+                    <section class="surface-panel editor-panel" aria-labelledby="brandEditorTitle">
+                        <div class="surface-header">
+                            <div>
+                                <h3 id="brandEditorTitle">Brand editor</h3>
+                                <p id="brandEditorHint">Connect to create a new brand or edit an existing one.</p>
+                            </div>
+                        </div>
+                        <form id="brandEditorForm" class="editor-form" novalidate>
+                            <div class="field-grid">
+                                <label class="field-group" for="brandDisplayNameInput">
+                                    <span>Display name</span>
+                                    <input type="text" id="brandDisplayNameInput" maxlength="128" disabled>
+                                </label>
+                                <label class="field-group" for="brandSlugInput">
+                                    <span>Slug</span>
+                                    <input type="text" id="brandSlugInput" maxlength="64" placeholder="xiaomi-su7"
+                                        disabled>
+                                </label>
+                                <label class="field-group" for="brandFolderInput">
+                                    <span>Folder name</span>
+                                    <input type="text" id="brandFolderInput" maxlength="128"
+                                        placeholder="XiaomiSU7" disabled>
+                                </label>
+                                <label class="field-group" for="brandSortInput">
+                                    <span>Sort order</span>
+                                    <input type="number" id="brandSortInput" min="1" step="1" disabled>
+                                </label>
+                            </div>
+
+                            <div class="editor-meta" id="brandMeta">Brand timestamps and wallpaper totals will appear
+                                here.</div>
+
+                            <div class="button-row">
+                                <button type="submit" class="primary-button" id="saveBrandButton" disabled>Create
+                                    brand</button>
+                                <button type="button" class="secondary-button" id="resetBrandButton" disabled>New
+                                    draft</button>
+                                <button type="button" class="secondary-button danger-button" id="deleteBrandButton"
+                                    disabled>Delete brand</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="surface-panel editor-panel upload-panel" aria-labelledby="wallpaperUploadTitle">
+                        <div class="surface-header">
+                            <div>
+                                <h3 id="wallpaperUploadTitle">Upload wallpaper</h3>
+                                <p id="wallpaperUploadHint">Upload a new original image and optionally a dedicated
+                                    preview image.</p>
+                            </div>
+                        </div>
+                        <form id="wallpaperUploadForm" class="editor-form" novalidate>
+                            <div class="field-grid">
+                                <label class="field-group" for="wallpaperUploadBrandSelect">
+                                    <span>Brand</span>
+                                    <select id="wallpaperUploadBrandSelect" disabled>
+                                        <option value="">Choose a brand</option>
+                                    </select>
+                                </label>
+                                <label class="field-group" for="wallpaperUploadTitleInput">
+                                    <span>Wallpaper title</span>
+                                    <input type="text" id="wallpaperUploadTitleInput" maxlength="255"
+                                        placeholder="Leave blank to auto-generate" disabled>
+                                </label>
+                                <label class="field-group" for="wallpaperUploadSortInput">
+                                    <span>Sort order</span>
+                                    <input type="number" id="wallpaperUploadSortInput" min="1" step="1"
+                                        placeholder="Auto" disabled>
+                                </label>
+                                <label class="field-group" for="wallpaperUploadFileInput">
+                                    <span>Original image</span>
+                                    <input type="file" id="wallpaperUploadFileInput"
+                                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled>
+                                </label>
+                                <label class="field-group" for="wallpaperUploadPreviewInput">
+                                    <span>Preview image</span>
+                                    <input type="file" id="wallpaperUploadPreviewInput"
+                                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled>
+                                </label>
+                            </div>
+
+                            <label class="checkbox-row editor-toggle" for="wallpaperUploadActiveInput">
+                                <input type="checkbox" id="wallpaperUploadActiveInput" checked disabled>
+                                <span>Publish this wallpaper as active immediately</span>
+                            </label>
+
+                            <div class="editor-meta" id="wallpaperUploadMeta">Supported formats: JPG, JPEG, PNG, and
+                                WEBP. Preview image is optional.</div>
+
+                            <div class="button-row">
+                                <button type="submit" class="primary-button" id="uploadWallpaperButton"
+                                    disabled>Upload wallpaper</button>
+                                <button type="button" class="secondary-button" id="resetWallpaperUploadButton"
+                                    disabled>Clear files</button>
+                            </div>
+                        </form>
+                    </section>
                 </div>
 
                 <div class="workspace-tools">
@@ -278,6 +389,8 @@
                             <div class="button-row">
                                 <button type="submit" class="primary-button" id="saveWallpaperButton" disabled>Save
                                     wallpaper</button>
+                                <button type="button" class="secondary-button danger-button"
+                                    id="deleteWallpaperButton" disabled>Delete wallpaper</button>
                                 <a id="wallpaperDownloadLink" class="secondary-button link-button" href="#"
                                     target="_blank" rel="noopener" hidden>Open full image</a>
                             </div>

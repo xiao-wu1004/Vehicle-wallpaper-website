@@ -2,17 +2,17 @@ package com.vehiclewallpaper.backend.web;
 
 import com.vehiclewallpaper.backend.admin.AdminSecurityNotConfiguredException;
 import com.vehiclewallpaper.backend.admin.AdminUnauthorizedException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
@@ -30,7 +30,7 @@ public class RestExceptionHandler {
         ApiErrorResponse response = new ApiErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
             HttpStatus.BAD_REQUEST.getReasonPhrase(),
-            "请求参数校验失败。",
+            "Request validation failed.",
             request.getRequestURI(),
             fieldErrors
         );
@@ -89,12 +89,25 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException exception,
+                                                                HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+            HttpStatus.PAYLOAD_TOO_LARGE.value(),
+            HttpStatus.PAYLOAD_TOO_LARGE.getReasonPhrase(),
+            "Uploaded file is too large. Compress it and try again.",
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception exception, HttpServletRequest request) {
         ApiErrorResponse response = new ApiErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-            "服务器暂时不可用，请稍后再试。",
+            "The server is temporarily unavailable. Please try again later.",
             request.getRequestURI(),
             null
         );

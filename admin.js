@@ -31,9 +31,11 @@ document.addEventListener("DOMContentLoaded", function () {
         loginUsernameHint: defaultLoginUsername,
         connected: false,
         dashboard: null,
+        brands: [],
         wallpapers: [],
         feedback: [],
         wallpaperSearch: "",
+        selectedBrandId: null,
         selectedWallpaperId: null,
         selectedFeedbackId: null
     };
@@ -59,6 +61,30 @@ document.addEventListener("DOMContentLoaded", function () {
         refreshAllButton: document.getElementById("refreshAllButton"),
         refreshCatalogButton: document.getElementById("refreshCatalogButton"),
         lastSyncTime: document.getElementById("lastSyncTime"),
+        brandListSummary: document.getElementById("brandListSummary"),
+        brandList: document.getElementById("brandList"),
+        createBrandButton: document.getElementById("createBrandButton"),
+        brandEditorHint: document.getElementById("brandEditorHint"),
+        brandEditorForm: document.getElementById("brandEditorForm"),
+        brandDisplayNameInput: document.getElementById("brandDisplayNameInput"),
+        brandSlugInput: document.getElementById("brandSlugInput"),
+        brandFolderInput: document.getElementById("brandFolderInput"),
+        brandSortInput: document.getElementById("brandSortInput"),
+        brandMeta: document.getElementById("brandMeta"),
+        saveBrandButton: document.getElementById("saveBrandButton"),
+        resetBrandButton: document.getElementById("resetBrandButton"),
+        deleteBrandButton: document.getElementById("deleteBrandButton"),
+        wallpaperUploadHint: document.getElementById("wallpaperUploadHint"),
+        wallpaperUploadForm: document.getElementById("wallpaperUploadForm"),
+        wallpaperUploadBrandSelect: document.getElementById("wallpaperUploadBrandSelect"),
+        wallpaperUploadTitleInput: document.getElementById("wallpaperUploadTitleInput"),
+        wallpaperUploadSortInput: document.getElementById("wallpaperUploadSortInput"),
+        wallpaperUploadFileInput: document.getElementById("wallpaperUploadFileInput"),
+        wallpaperUploadPreviewInput: document.getElementById("wallpaperUploadPreviewInput"),
+        wallpaperUploadActiveInput: document.getElementById("wallpaperUploadActiveInput"),
+        wallpaperUploadMeta: document.getElementById("wallpaperUploadMeta"),
+        uploadWallpaperButton: document.getElementById("uploadWallpaperButton"),
+        resetWallpaperUploadButton: document.getElementById("resetWallpaperUploadButton"),
         wallpaperBrandFilter: document.getElementById("wallpaperBrandFilter"),
         wallpaperActiveFilter: document.getElementById("wallpaperActiveFilter"),
         wallpaperSearchInput: document.getElementById("wallpaperSearchInput"),
@@ -75,6 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
         wallpaperActiveInput: document.getElementById("wallpaperActiveInput"),
         wallpaperMeta: document.getElementById("wallpaperMeta"),
         saveWallpaperButton: document.getElementById("saveWallpaperButton"),
+        deleteWallpaperButton: document.getElementById("deleteWallpaperButton"),
         wallpaperDownloadLink: document.getElementById("wallpaperDownloadLink"),
         feedbackStatusFilter: document.getElementById("feedbackStatusFilter"),
         feedbackFeaturedFilter: document.getElementById("feedbackFeaturedFilter"),
@@ -190,7 +217,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function brandLabel(slug) {
         const normalizedSlug = normalizeValue(slug).toLowerCase();
+        const matchingBrand = state.brands.find(function (brand) {
+            return normalizeValue(brand.slug).toLowerCase() === normalizedSlug;
+        });
+        if (matchingBrand) {
+            return displayText(matchingBrand.displayName, brandLabels[normalizedSlug] || normalizedSlug || "Unknown brand");
+        }
         return brandLabels[normalizedSlug] || normalizedSlug || "Unknown brand";
+    }
+
+    function resolveAssetUrl(path) {
+        const normalizedPath = normalizeValue(path);
+        if (!normalizedPath) {
+            return "";
+        }
+        if (/^https?:\/\//i.test(normalizedPath)) {
+            return normalizedPath;
+        }
+        if (normalizedPath.charAt(0) === "/") {
+            return buildApiUrl(normalizedPath);
+        }
+        return buildApiUrl("/" + normalizedPath);
     }
 
     function formatDateTime(value) {
@@ -257,12 +304,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function clearDataViews() {
         state.dashboard = null;
+        state.brands = [];
         state.wallpapers = [];
         state.feedback = [];
+        state.selectedBrandId = null;
         state.selectedWallpaperId = null;
         state.selectedFeedbackId = null;
+        resetWallpaperUploadFields();
 
         renderDashboard();
+        renderBrandList();
+        renderBrandEditor();
+        renderWallpaperUploadForm();
         renderWallpaperList();
         renderWallpaperEditor();
         renderFeedbackList();
@@ -317,6 +370,7 @@ document.addEventListener("DOMContentLoaded", function () {
             Accept: "application/json"
         };
         const requestOptions = Object.assign({ method: "GET" }, options || {});
+        const isFormDataBody = typeof FormData !== "undefined" && requestOptions.body instanceof FormData;
 
         if (state.accessToken) {
             headers.Authorization = "Bearer " + state.accessToken;
@@ -324,7 +378,7 @@ document.addEventListener("DOMContentLoaded", function () {
             headers["X-Admin-API-Key"] = state.apiKey;
         }
 
-        if (requestOptions.body) {
+        if (requestOptions.body && !isFormDataBody && !(requestOptions.headers && requestOptions.headers["Content-Type"])) {
             headers["Content-Type"] = "application/json";
         }
 
@@ -355,6 +409,19 @@ document.addEventListener("DOMContentLoaded", function () {
     async function loadDashboard() {
         state.dashboard = await fetchAdmin("/api/admin/dashboard");
         renderDashboard();
+    }
+
+    async function loadBrands() {
+        state.brands = await fetchAdmin("/api/admin/brands");
+
+        if (state.selectedBrandId && !selectedBrand()) {
+            state.selectedBrandId = null;
+        }
+
+        renderBrandList();
+        renderBrandEditor();
+        renderWallpaperBrandOptions();
+        renderWallpaperUploadForm();
     }
 
     async function loadWallpapers() {
@@ -398,7 +465,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function loadAllData() {
-        await Promise.all([loadDashboard(), loadWallpapers(), loadFeedback()]);
+        await Promise.all([loadDashboard(), loadBrands(), loadWallpapers(), loadFeedback()]);
     }
 
     async function requestAdminLogin(username, password) {
@@ -519,29 +586,183 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.lastSyncTime.textContent = dashboard ? formatDateTime(dashboard.catalogGeneratedAt) : "Not loaded yet";
     }
 
+    function selectedBrand() {
+        return state.brands.find(function (brand) {
+            return brand.id === state.selectedBrandId;
+        }) || null;
+    }
+
+    function nextSuggestedBrandSortOrder() {
+        return state.brands.reduce(function (maxValue, brand) {
+            return Math.max(maxValue, Number(brand.sortOrder) || 0);
+        }, 0) + 1;
+    }
+
+    function renderBrandList() {
+        elements.brandList.innerHTML = "";
+        elements.createBrandButton.disabled = !state.connected;
+        elements.brandListSummary.textContent = state.connected
+            ? state.brands.length + " brand entries"
+            : "Connect to load data";
+
+        if (!state.connected) {
+            elements.brandList.innerHTML = '<div class="entity-empty">Connect to the admin APIs to load editable brand records.</div>';
+            return;
+        }
+
+        if (state.brands.length === 0) {
+            elements.brandList.innerHTML = '<div class="entity-empty">No brand records exist yet. Create your first brand to start building the catalog.</div>';
+            return;
+        }
+
+        state.brands.forEach(function (brand) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "entity-row" + (state.selectedBrandId === brand.id ? " is-selected" : "");
+            button.dataset.id = String(brand.id);
+            button.innerHTML =
+                '<div class="entity-body">' +
+                '<div class="entity-title">' + escapeHtml(displayText(brand.displayName, brand.slug)) + '</div>' +
+                '<div class="entity-subtitle">' + escapeHtml(brand.slug) + " / " + escapeHtml(displayText(brand.folderName)) + '</div>' +
+                '<div class="entity-meta">Updated ' + escapeHtml(formatDateTime(brand.updatedAt)) + '</div>' +
+                '</div>' +
+                '<div class="entity-side">' +
+                '<span class="badge is-brand">' + brand.wallpaperCount + ' wallpapers</span>' +
+                '<span class="badge">Sort ' + brand.sortOrder + '</span>' +
+                '</div>';
+
+            button.addEventListener("click", function () {
+                state.selectedBrandId = brand.id;
+                elements.wallpaperUploadBrandSelect.value = String(brand.id);
+                renderBrandList();
+                renderBrandEditor();
+                renderWallpaperUploadForm();
+            });
+
+            elements.brandList.appendChild(button);
+        });
+    }
+
+    function setBrandEditorDisabled(disabled) {
+        [
+            elements.brandDisplayNameInput,
+            elements.brandSlugInput,
+            elements.brandFolderInput,
+            elements.brandSortInput,
+            elements.saveBrandButton,
+            elements.resetBrandButton,
+            elements.deleteBrandButton
+        ].forEach(function (element) {
+            element.disabled = disabled;
+        });
+    }
+
+    function renderBrandEditor() {
+        const brand = selectedBrand();
+
+        if (!state.connected) {
+            setBrandEditorDisabled(true);
+            elements.brandEditorHint.textContent = "Connect first, then create a brand or edit one from the list.";
+            elements.brandDisplayNameInput.value = "";
+            elements.brandSlugInput.value = "";
+            elements.brandFolderInput.value = "";
+            elements.brandSortInput.value = "";
+            elements.brandMeta.textContent = "Brand timestamps and wallpaper totals will appear here.";
+            elements.saveBrandButton.textContent = "Create brand";
+            return;
+        }
+
+        setBrandEditorDisabled(false);
+        elements.resetBrandButton.disabled = false;
+
+        if (!brand) {
+            elements.brandEditorHint.textContent = "Create a new brand record. Slug must stay lowercase and folder name should match the runtime asset directory.";
+            elements.brandDisplayNameInput.value = "";
+            elements.brandSlugInput.value = "";
+            elements.brandFolderInput.value = "";
+            elements.brandSortInput.value = String(nextSuggestedBrandSortOrder());
+            elements.brandMeta.textContent = "New brand mode. Saving will create the database record and the matching asset folders.";
+            elements.saveBrandButton.textContent = "Create brand";
+            elements.deleteBrandButton.disabled = true;
+            return;
+        }
+
+        elements.brandEditorHint.textContent = "Editing brand ID #" + brand.id + ". Update metadata or rename its asset folders from here.";
+        elements.brandDisplayNameInput.value = displayText(brand.displayName, brand.slug);
+        elements.brandSlugInput.value = brand.slug;
+        elements.brandFolderInput.value = displayText(brand.folderName);
+        elements.brandSortInput.value = String(brand.sortOrder);
+        elements.brandMeta.textContent =
+            "Wallpapers: " + brand.wallpaperCount + " / Created: " + formatDateTime(brand.createdAt) + " / Updated: " + formatDateTime(brand.updatedAt);
+        elements.saveBrandButton.textContent = "Save brand";
+        elements.deleteBrandButton.disabled = false;
+    }
+
     function renderWallpaperBrandOptions() {
         const selectedValue = elements.wallpaperBrandFilter.value;
-        const slugs = [];
-
-        state.wallpapers.forEach(function (wallpaper) {
-            if (slugs.indexOf(wallpaper.brandSlug) < 0) {
-                slugs.push(wallpaper.brandSlug);
-            }
-        });
-
-        slugs.sort();
         elements.wallpaperBrandFilter.innerHTML = '<option value="">All brands</option>';
 
-        slugs.forEach(function (slug) {
+        state.brands.forEach(function (brand) {
             const option = document.createElement("option");
-            option.value = slug;
-            option.textContent = brandLabel(slug);
+            option.value = brand.slug;
+            option.textContent = displayText(brand.displayName, brand.slug);
             elements.wallpaperBrandFilter.appendChild(option);
         });
 
-        if (selectedValue && slugs.indexOf(selectedValue) >= 0) {
+        if (selectedValue && state.brands.some(function (brand) { return brand.slug === selectedValue; })) {
             elements.wallpaperBrandFilter.value = selectedValue;
         }
+    }
+
+    function setWallpaperUploadDisabled(disabled) {
+        [
+            elements.wallpaperUploadBrandSelect,
+            elements.wallpaperUploadTitleInput,
+            elements.wallpaperUploadSortInput,
+            elements.wallpaperUploadFileInput,
+            elements.wallpaperUploadPreviewInput,
+            elements.wallpaperUploadActiveInput,
+            elements.uploadWallpaperButton,
+            elements.resetWallpaperUploadButton
+        ].forEach(function (element) {
+            element.disabled = disabled;
+        });
+    }
+
+    function renderWallpaperUploadForm() {
+        const selectedBrandValue = normalizeValue(elements.wallpaperUploadBrandSelect.value);
+        const draftBrand = selectedBrand();
+        const preferredValue = draftBrand ? String(draftBrand.id) : selectedBrandValue;
+
+        elements.wallpaperUploadBrandSelect.innerHTML = '<option value="">Choose a brand</option>';
+        state.brands.forEach(function (brand) {
+            const option = document.createElement("option");
+            option.value = String(brand.id);
+            option.textContent = displayText(brand.displayName, brand.slug);
+            elements.wallpaperUploadBrandSelect.appendChild(option);
+        });
+
+        if (preferredValue && state.brands.some(function (brand) { return String(brand.id) === preferredValue; })) {
+            elements.wallpaperUploadBrandSelect.value = preferredValue;
+        }
+
+        if (!state.connected) {
+            setWallpaperUploadDisabled(true);
+            elements.wallpaperUploadHint.textContent = "Connect first, then upload new wallpaper files into one brand.";
+            elements.wallpaperUploadMeta.textContent = "Supported formats: JPG, JPEG, PNG, and WEBP. Preview image is optional.";
+            return;
+        }
+
+        if (state.brands.length === 0) {
+            setWallpaperUploadDisabled(true);
+            elements.wallpaperUploadHint.textContent = "Create a brand first. Uploads need a target brand folder.";
+            elements.wallpaperUploadMeta.textContent = "Once a brand exists, the upload form will unlock and save files into that brand directory.";
+            return;
+        }
+
+        setWallpaperUploadDisabled(false);
+        elements.wallpaperUploadHint.textContent = "Upload an original image and optionally a custom preview image. Leaving the title blank will auto-generate it.";
+        elements.wallpaperUploadMeta.textContent = "Uploads are written into the backend catalog folders, then stored in the admin catalog database.";
     }
 
     function filteredWallpapers() {
@@ -590,7 +811,7 @@ document.addEventListener("DOMContentLoaded", function () {
             button.className = "entity-row" + (state.selectedWallpaperId === wallpaper.id ? " is-selected" : "");
             button.dataset.id = String(wallpaper.id);
             button.innerHTML =
-                '<img class="entity-thumbnail" src="' + wallpaper.previewUrl + '" alt="">' +
+                '<img class="entity-thumbnail" src="' + escapeHtml(resolveAssetUrl(wallpaper.previewUrl)) + '" alt="">' +
                 '<div class="entity-body">' +
                 '<div class="entity-title">' + escapeHtml(bestWallpaperTitle(wallpaper)) + '</div>' +
                 '<div class="entity-subtitle">' + escapeHtml(brandLabel(wallpaper.brandSlug)) + " / " + escapeHtml(displayText(wallpaper.fileName)) + '</div>' +
@@ -618,7 +839,8 @@ document.addEventListener("DOMContentLoaded", function () {
             elements.wallpaperBrandDisplay,
             elements.wallpaperFileNameDisplay,
             elements.wallpaperActiveInput,
-            elements.saveWallpaperButton
+            elements.saveWallpaperButton,
+            elements.deleteWallpaperButton
         ].forEach(function (element) {
             element.disabled = disabled;
         });
@@ -642,13 +864,14 @@ document.addEventListener("DOMContentLoaded", function () {
             elements.wallpaperActiveInput.checked = false;
             elements.wallpaperMeta.textContent = "Created time, updated time, and slug details will appear here.";
             elements.wallpaperDownloadLink.hidden = true;
+            elements.deleteWallpaperButton.disabled = true;
             return;
         }
 
         setWallpaperEditorDisabled(false);
         elements.wallpaperEditorHint.textContent = "Editing wallpaper ID #" + wallpaper.id + ".";
         elements.wallpaperPreview.hidden = false;
-        elements.wallpaperPreview.src = wallpaper.previewUrl;
+        elements.wallpaperPreview.src = resolveAssetUrl(wallpaper.previewUrl);
         elements.wallpaperPreview.alt = bestWallpaperTitle(wallpaper);
         elements.wallpaperPreviewPlaceholder.hidden = true;
         elements.wallpaperTitleInput.value = bestWallpaperTitle(wallpaper);
@@ -659,7 +882,8 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.wallpaperMeta.textContent =
             "Slug: " + wallpaper.slug + " / Created: " + formatDateTime(wallpaper.createdAt) + " / Updated: " + formatDateTime(wallpaper.updatedAt);
         elements.wallpaperDownloadLink.hidden = false;
-        elements.wallpaperDownloadLink.href = wallpaper.fullUrl;
+        elements.wallpaperDownloadLink.href = resolveAssetUrl(wallpaper.fullUrl);
+        elements.deleteWallpaperButton.disabled = false;
     }
 
     function selectedFeedback() {
@@ -864,12 +1088,197 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             state.dashboard = await fetchAdmin("/api/admin/catalog/refresh", { method: "POST" });
             renderDashboard();
-            await loadWallpapers();
+            await Promise.all([loadBrands(), loadWallpapers()]);
             setNotice("Catalog sync completed and wallpaper data has been reloaded.", "success");
         } catch (error) {
             setNotice(error.message || "Catalog sync failed.", "error");
         } finally {
             elements.refreshCatalogButton.disabled = false;
+        }
+    }
+
+    async function handleBrandSave(event) {
+        event.preventDefault();
+
+        if (!state.connected) {
+            return;
+        }
+
+        const payload = {
+            displayName: normalizeValue(elements.brandDisplayNameInput.value),
+            slug: normalizeValue(elements.brandSlugInput.value),
+            folderName: normalizeValue(elements.brandFolderInput.value),
+            sortOrder: elements.brandSortInput.value ? Number(elements.brandSortInput.value) : null
+        };
+        const brand = selectedBrand();
+        const requestPath = brand ? "/api/admin/brands/" + brand.id : "/api/admin/brands";
+        const requestMethod = brand ? "PATCH" : "POST";
+
+        elements.saveBrandButton.disabled = true;
+        setNotice(brand ? "Saving brand changes." : "Creating a new brand record.", "info");
+
+        try {
+            const updatedBrand = await fetchAdmin(requestPath, {
+                method: requestMethod,
+                body: JSON.stringify(payload)
+            });
+            state.selectedBrandId = updatedBrand.id;
+            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard()]);
+            elements.wallpaperUploadBrandSelect.value = String(updatedBrand.id);
+            renderBrandList();
+            renderBrandEditor();
+            renderWallpaperUploadForm();
+            setNotice(brand ? "Brand changes saved." : "Brand created successfully.", "success");
+        } catch (error) {
+            setNotice(error.message || "Failed to save brand changes.", "error");
+        } finally {
+            elements.saveBrandButton.disabled = false;
+        }
+    }
+
+    function handleCreateBrandDraft() {
+        state.selectedBrandId = null;
+        renderBrandList();
+        renderBrandEditor();
+        renderWallpaperUploadForm();
+        if (!elements.brandDisplayNameInput.disabled) {
+            elements.brandDisplayNameInput.focus();
+        }
+    }
+
+    async function handleBrandDelete() {
+        const brand = selectedBrand();
+        if (!brand) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Delete brand \"" + displayText(brand.displayName, brand.slug) + "\" and its " + brand.wallpaperCount + " wallpaper record(s)? This also removes the brand folders from the backend catalog."
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        elements.deleteBrandButton.disabled = true;
+        setNotice("Deleting brand and removing its catalog folders.", "info");
+
+        try {
+            await fetchAdmin("/api/admin/brands/" + brand.id, { method: "DELETE" });
+            state.selectedBrandId = null;
+            if (elements.wallpaperBrandFilter.value === brand.slug) {
+                elements.wallpaperBrandFilter.value = "";
+            }
+            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard()]);
+            renderBrandList();
+            renderBrandEditor();
+            renderWallpaperUploadForm();
+            setNotice("Brand deleted successfully.", "success");
+        } catch (error) {
+            setNotice(error.message || "Failed to delete brand.", "error");
+        } finally {
+            elements.deleteBrandButton.disabled = !selectedBrand();
+        }
+    }
+
+    function resetWallpaperUploadFields() {
+        elements.wallpaperUploadTitleInput.value = "";
+        elements.wallpaperUploadSortInput.value = "";
+        elements.wallpaperUploadFileInput.value = "";
+        elements.wallpaperUploadPreviewInput.value = "";
+        elements.wallpaperUploadActiveInput.checked = true;
+    }
+
+    async function handleWallpaperUpload(event) {
+        event.preventDefault();
+
+        if (!state.connected) {
+            return;
+        }
+
+        const brandId = normalizeValue(elements.wallpaperUploadBrandSelect.value);
+        const originalFile = elements.wallpaperUploadFileInput.files[0];
+        const previewFile = elements.wallpaperUploadPreviewInput.files[0];
+
+        if (!brandId) {
+            setNotice("Choose a target brand before uploading a wallpaper.", "error");
+            return;
+        }
+
+        if (!originalFile) {
+            setNotice("Choose the original wallpaper image before uploading.", "error");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", originalFile);
+
+        if (previewFile) {
+            formData.append("previewFile", previewFile);
+        }
+
+        const title = normalizeValue(elements.wallpaperUploadTitleInput.value);
+        const sortOrder = normalizeValue(elements.wallpaperUploadSortInput.value);
+
+        if (title) {
+            formData.append("title", title);
+        }
+        if (sortOrder) {
+            formData.append("sortOrder", String(Number(sortOrder)));
+        }
+        formData.append("active", String(Boolean(elements.wallpaperUploadActiveInput.checked)));
+
+        elements.uploadWallpaperButton.disabled = true;
+        setNotice("Uploading wallpaper files and saving catalog metadata.", "info");
+
+        try {
+            const uploadedWallpaper = await fetchAdmin("/api/admin/brands/" + brandId + "/wallpapers", {
+                method: "POST",
+                body: formData
+            });
+            elements.wallpaperBrandFilter.value = uploadedWallpaper.brandSlug;
+            resetWallpaperUploadFields();
+            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands()]);
+            state.selectedWallpaperId = uploadedWallpaper.id;
+            renderWallpaperList();
+            renderWallpaperEditor();
+            renderWallpaperUploadForm();
+            setNotice("Wallpaper uploaded successfully.", "success");
+        } catch (error) {
+            setNotice(error.message || "Failed to upload wallpaper.", "error");
+        } finally {
+            elements.uploadWallpaperButton.disabled = false;
+        }
+    }
+
+    async function handleWallpaperDelete() {
+        const wallpaper = selectedWallpaper();
+        if (!wallpaper) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Delete wallpaper \"" + bestWallpaperTitle(wallpaper) + "\"? This removes its catalog record and deletes the stored image files from the backend runtime."
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        elements.deleteWallpaperButton.disabled = true;
+        setNotice("Deleting wallpaper and removing its files.", "info");
+
+        try {
+            await fetchAdmin("/api/admin/wallpapers/" + wallpaper.id, { method: "DELETE" });
+            state.selectedWallpaperId = null;
+            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands()]);
+            renderWallpaperList();
+            renderWallpaperEditor();
+            renderBrandList();
+            renderBrandEditor();
+            setNotice("Wallpaper deleted successfully.", "success");
+        } catch (error) {
+            setNotice(error.message || "Failed to delete wallpaper.", "error");
+        } finally {
+            elements.deleteWallpaperButton.disabled = !selectedWallpaper();
         }
     }
 
@@ -974,8 +1383,26 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.clearKeyButton.addEventListener("click", handleClearKey);
         elements.refreshAllButton.addEventListener("click", handleRefreshAll);
         elements.refreshCatalogButton.addEventListener("click", handleRefreshCatalog);
+        elements.createBrandButton.addEventListener("click", handleCreateBrandDraft);
+        elements.brandEditorForm.addEventListener("submit", handleBrandSave);
+        elements.resetBrandButton.addEventListener("click", handleCreateBrandDraft);
+        elements.deleteBrandButton.addEventListener("click", handleBrandDelete);
+        elements.wallpaperUploadForm.addEventListener("submit", handleWallpaperUpload);
+        elements.resetWallpaperUploadButton.addEventListener("click", resetWallpaperUploadFields);
         elements.wallpaperEditorForm.addEventListener("submit", handleWallpaperSave);
+        elements.deleteWallpaperButton.addEventListener("click", handleWallpaperDelete);
         elements.feedbackEditorForm.addEventListener("submit", handleFeedbackSave);
+
+        elements.wallpaperUploadBrandSelect.addEventListener("change", function () {
+            const selectedId = normalizeValue(elements.wallpaperUploadBrandSelect.value);
+            if (!selectedId) {
+                return;
+            }
+            state.selectedBrandId = Number(selectedId);
+            renderBrandList();
+            renderBrandEditor();
+            renderWallpaperUploadForm();
+        });
 
         elements.wallpaperBrandFilter.addEventListener("change", function () {
             if (state.connected) {
@@ -1071,6 +1498,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? "Sign in with your admin username and password to load the protected console."
                 : "Enter an admin API key to load the protected console.", "info");
             renderDashboard();
+            renderBrandList();
+            renderBrandEditor();
+            renderWallpaperUploadForm();
             renderWallpaperList();
             renderWallpaperEditor();
             renderFeedbackList();

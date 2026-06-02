@@ -8,6 +8,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,19 +20,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
 public class CatalogService {
 
-    private static final List<BrandDefinition> BRAND_DEFINITIONS = Arrays.asList(
+    private static final List<BrandDefinition> DEFAULT_BRAND_DEFINITIONS = Arrays.asList(
         new BrandDefinition("benz", "奔驰", "MercedesBenz"),
         new BrandDefinition("porsche", "保时捷", "Porsche"),
         new BrandDefinition("hongqi", "红旗", "HongQi"),
@@ -71,6 +71,10 @@ public class CatalogService {
     public CatalogOverviewResponse getOverview() {
         CatalogOverviewResponse overview = cachedOverview;
         return overview == null ? refreshCatalog() : overview;
+    }
+
+    public void invalidateOverview() {
+        cachedOverview = null;
     }
 
     public List<BrandCatalogResponse> getBrands() {
@@ -194,30 +198,32 @@ public class CatalogService {
 
     private void syncCatalogToDatabase() {
         Path catalogRoot = Paths.get(catalogProperties.getRootPath()).toAbsolutePath().normalize();
-        Set<String> knownBrandSlugs = new LinkedHashSet<String>();
+        ensureDefaultBrands();
 
-        for (int index = 0; index < BRAND_DEFINITIONS.size(); index++) {
-            BrandDefinition definition = BRAND_DEFINITIONS.get(index);
-            knownBrandSlugs.add(definition.getSlug());
+        for (BrandEntity brand : brandRepository.findAllByOrderBySortOrderAsc()) {
+            syncWallpapersForBrand(catalogRoot, brand);
+        }
+    }
 
-            BrandEntity brand = brandRepository.findBySlugIgnoreCase(definition.getSlug())
-                .orElseGet(BrandEntity::new);
+    private void ensureDefaultBrands() {
+        if (brandRepository.count() > 0) {
+            return;
+        }
 
+        for (int index = 0; index < DEFAULT_BRAND_DEFINITIONS.size(); index++) {
+            BrandDefinition definition = DEFAULT_BRAND_DEFINITIONS.get(index);
+            BrandEntity brand = new BrandEntity();
             brand.setSlug(definition.getSlug());
             brand.setDisplayName(definition.getDisplayName());
             brand.setFolderName(definition.getFolderName());
             brand.setSortOrder(index + 1);
-            brand = brandRepository.save(brand);
-
-            replaceWallpapersForBrand(catalogRoot, definition, brand);
+            brandRepository.save(brand);
         }
-
-        cleanupRemovedBrands(knownBrandSlugs);
     }
 
-    private void replaceWallpapersForBrand(Path catalogRoot, BrandDefinition definition, BrandEntity brand) {
-        Path originalsDir = catalogRoot.resolve(definition.getFolderName());
-        Path previewsDir = catalogRoot.resolve("_thumb").resolve(definition.getFolderName());
+    private void syncWallpapersForBrand(Path catalogRoot, BrandEntity brand) {
+        Path originalsDir = catalogRoot.resolve(brand.getFolderName());
+        Path previewsDir = catalogRoot.resolve("_thumb").resolve(brand.getFolderName());
 
         Map<String, Path> originalFiles = selectPreferredFiles(scanImageFiles(originalsDir), ORIGINAL_EXTENSION_PRIORITY);
         Map<String, Path> previewFiles = selectPreferredFiles(scanImageFiles(previewsDir), PREVIEW_EXTENSION_PRIORITY);
@@ -225,40 +231,89 @@ public class CatalogService {
         List<String> sortedStems = new ArrayList<String>(originalFiles.keySet());
         Collections.sort(sortedStems);
 
-        wallpaperRepository.deleteByBrandId(brand.getId());
+        List<WallpaperEntity> existingWallpapers = wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId());
+        Map<String, WallpaperEntity> existingByFileName = new LinkedHashMap<String, WallpaperEntity>();
+        int nextSlugNumber = determineNextWallpaperSlugNumber(brand.getSlug(), existingWallpapers);
+        int nextSortOrder = determineNextSortOrder(existingWallpapers);
 
-        List<WallpaperEntity> replacements = new ArrayList<WallpaperEntity>();
-        int index = 1;
+        for (WallpaperEntity existingWallpaper : existingWallpapers) {
+            existingByFileName.put(existingWallpaper.getFileName().toLowerCase(Locale.ROOT), existingWallpaper);
+        }
+
         for (String stem : sortedStems) {
             Path originalPath = originalFiles.get(stem);
             Path previewPath = previewFiles.containsKey(stem) ? previewFiles.get(stem) : originalPath;
-            String previewUrl = toPublicUrl(catalogRoot, previewPath);
-            String fullUrl = toPublicUrl(catalogRoot, originalPath);
+            String fileName = originalPath.getFileName().toString();
+            WallpaperEntity wallpaper = existingByFileName.remove(fileName.toLowerCase(Locale.ROOT));
 
-            WallpaperEntity wallpaper = new WallpaperEntity();
-            wallpaper.setBrand(brand);
-            wallpaper.setSlug(definition.getSlug() + "-" + index);
-            wallpaper.setTitle(definition.getDisplayName() + "壁纸" + index);
-            wallpaper.setFileName(originalPath.getFileName().toString());
-            wallpaper.setPreviewUrl(previewUrl);
-            wallpaper.setFullUrl(fullUrl);
-            wallpaper.setDownloadUrl(fullUrl);
-            wallpaper.setSortOrder(index);
-            wallpaper.setActive(true);
-            replacements.add(wallpaper);
-            index++;
+            if (wallpaper == null) {
+                wallpaper = new WallpaperEntity();
+                wallpaper.setBrand(brand);
+                wallpaper.setSlug(buildNextWallpaperSlug(brand.getSlug(), nextSlugNumber));
+                wallpaper.setTitle(defaultWallpaperTitle(brand, nextSortOrder));
+                wallpaper.setSortOrder(nextSortOrder);
+                wallpaper.setActive(true);
+                nextSlugNumber++;
+                nextSortOrder++;
+            }
+
+            wallpaper.setFileName(fileName);
+            wallpaper.setPreviewUrl(toPublicUrl(catalogRoot, previewPath));
+            wallpaper.setFullUrl(toPublicUrl(catalogRoot, originalPath));
+            wallpaper.setDownloadUrl(toPublicUrl(catalogRoot, originalPath));
+
+            if (wallpaper.getTitle() == null || wallpaper.getTitle().trim().isEmpty()) {
+                wallpaper.setTitle(defaultWallpaperTitle(brand, wallpaper.getSortOrder()));
+            }
+            if (wallpaper.getSortOrder() < 1) {
+                wallpaper.setSortOrder(nextSortOrder++);
+            }
+
+            wallpaperRepository.save(wallpaper);
         }
 
-        wallpaperRepository.saveAll(replacements);
+        for (WallpaperEntity removedWallpaper : existingByFileName.values()) {
+            wallpaperRepository.delete(removedWallpaper);
+        }
     }
 
-    private void cleanupRemovedBrands(Set<String> knownBrandSlugs) {
-        for (BrandEntity brand : brandRepository.findAll()) {
-            if (!knownBrandSlugs.contains(brand.getSlug())) {
-                wallpaperRepository.deleteByBrandId(brand.getId());
-                brandRepository.delete(brand);
+    private int determineNextWallpaperSlugNumber(String brandSlug, List<WallpaperEntity> existingWallpapers) {
+        int max = 0;
+        for (WallpaperEntity wallpaper : existingWallpapers) {
+            String slug = wallpaper.getSlug();
+            String prefix = brandSlug + "-";
+            if (slug != null && slug.startsWith(prefix)) {
+                String suffix = slug.substring(prefix.length());
+                try {
+                    max = Math.max(max, Integer.parseInt(suffix));
+                } catch (NumberFormatException ignored) {
+                    // Ignore legacy or custom slugs and keep scanning.
+                }
             }
         }
+        return max + 1;
+    }
+
+    private int determineNextSortOrder(List<WallpaperEntity> existingWallpapers) {
+        int max = 0;
+        for (WallpaperEntity wallpaper : existingWallpapers) {
+            max = Math.max(max, wallpaper.getSortOrder());
+        }
+        return Math.max(1, max + 1);
+    }
+
+    private String buildNextWallpaperSlug(String brandSlug, int nextNumber) {
+        String candidate = brandSlug + "-" + nextNumber;
+        int suffix = nextNumber;
+        while (wallpaperRepository.existsBySlugIgnoreCase(candidate)) {
+            suffix++;
+            candidate = brandSlug + "-" + suffix;
+        }
+        return candidate;
+    }
+
+    private String defaultWallpaperTitle(BrandEntity brand, int sortOrder) {
+        return brand.getDisplayName() + "壁纸" + sortOrder;
     }
 
     private Map<String, Path> selectPreferredFiles(List<Path> files, List<String> extensionPriority) {
@@ -277,16 +332,18 @@ public class CatalogService {
             candidates.sort(new Comparator<Path>() {
                 @Override
                 public int compare(Path left, Path right) {
-                    return Integer.compare(
-                        extensionPriority.indexOf(extensionOf(left)),
-                        extensionPriority.indexOf(extensionOf(right))
-                    );
+                    return Integer.compare(priorityIndex(extensionPriority, extensionOf(left)), priorityIndex(extensionPriority, extensionOf(right)));
                 }
             });
             result.put(entry.getKey(), candidates.get(0));
         }
 
         return result;
+    }
+
+    private int priorityIndex(List<String> extensionPriority, String extension) {
+        int index = extensionPriority.indexOf(extension);
+        return index >= 0 ? index : Integer.MAX_VALUE;
     }
 
     private List<Path> scanImageFiles(Path directory) {
@@ -329,6 +386,17 @@ public class CatalogService {
 
     private String toPublicUrl(Path catalogRoot, Path file) {
         String relativePath = catalogRoot.relativize(file).toString().replace("\\", "/");
-        return "/cars/" + relativePath;
+        String[] segments = relativePath.split("/");
+        return "/cars/" + Arrays.stream(segments)
+            .map(this::encodePathSegment)
+            .collect(Collectors.joining("/"));
+    }
+
+    private String encodePathSegment(String rawSegment) {
+        try {
+            return URLEncoder.encode(rawSegment, StandardCharsets.UTF_8.name()).replace("+", "%20");
+        } catch (UnsupportedEncodingException exception) {
+            throw new IllegalStateException("无法编码资源路径：" + rawSegment, exception);
+        }
     }
 }
