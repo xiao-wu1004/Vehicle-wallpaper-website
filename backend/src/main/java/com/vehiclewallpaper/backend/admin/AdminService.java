@@ -694,18 +694,28 @@ public class AdminService {
             return;
         }
 
+        List<Path> pathsToDelete;
         try {
-            Files.walk(directory)
+            pathsToDelete = Files.walk(directory)
                 .sorted(Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException exception) {
-                        throw new IllegalStateException("Failed to delete directory: " + directory, exception);
-                    }
-                });
+                .collect(java.util.stream.Collectors.toList());
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to inspect directory for deletion: " + directory, exception);
+        }
+
+        List<String> failedPaths = new ArrayList<>();
+        for (Path path : pathsToDelete) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException exception) {
+                failedPaths.add(path.toString());
+            }
+        }
+
+        if (!failedPaths.isEmpty()) {
+            throw new IllegalStateException(
+                "Failed to delete " + failedPaths.size() + " item(s) in " + directory
+                + " (e.g. " + failedPaths.get(0) + ")");
         }
     }
 
