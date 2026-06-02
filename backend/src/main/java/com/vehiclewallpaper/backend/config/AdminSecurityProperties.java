@@ -9,6 +9,14 @@ public class AdminSecurityProperties {
 
     private String apiKey = "";
 
+    private String loginUsername = "";
+
+    private String loginPassword = "";
+
+    private String tokenSecret = "";
+
+    private long tokenTtlHours = 12;
+
     public String getHeaderName() {
         return headerName;
     }
@@ -23,5 +31,37 @@ public class AdminSecurityProperties {
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public String getLoginUsername() {
+        return loginUsername;
+    }
+
+    public void setLoginUsername(String loginUsername) {
+        this.loginUsername = loginUsername;
+    }
+
+    public String getLoginPassword() {
+        return loginPassword;
+    }
+
+    public void setLoginPassword(String loginPassword) {
+        this.loginPassword = loginPassword;
+    }
+
+    public String getTokenSecret() {
+        return tokenSecret;
+    }
+
+    public void setTokenSecret(String tokenSecret) {
+        this.tokenSecret = tokenSecret;
+    }
+
+    public long getTokenTtlHours() {
+        return tokenTtlHours;
+    }
+
+    public void setTokenTtlHours(long tokenTtlHours) {
+        this.tokenTtlHours = tokenTtlHours;
     }
 }

@@ -1,6 +1,5 @@
 package com.vehiclewallpaper.backend.admin;
 
-import com.vehiclewallpaper.backend.config.AdminSecurityProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -10,10 +9,10 @@ import javax.servlet.http.HttpServletResponse;
 @Component
 public class AdminApiKeyInterceptor implements HandlerInterceptor {
 
-    private final AdminSecurityProperties adminSecurityProperties;
+    private final AdminAuthenticationService adminAuthenticationService;
 
-    public AdminApiKeyInterceptor(AdminSecurityProperties adminSecurityProperties) {
-        this.adminSecurityProperties = adminSecurityProperties;
+    public AdminApiKeyInterceptor(AdminAuthenticationService adminAuthenticationService) {
+        this.adminAuthenticationService = adminAuthenticationService;
     }
 
     @Override
@@ -22,20 +21,8 @@ public class AdminApiKeyInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String configuredApiKey = normalize(adminSecurityProperties.getApiKey());
-        if (configuredApiKey.isEmpty()) {
-            throw new AdminSecurityNotConfiguredException("Admin API key is not configured.");
-        }
-
-        String incomingApiKey = normalize(request.getHeader(adminSecurityProperties.getHeaderName()));
-        if (!configuredApiKey.equals(incomingApiKey)) {
-            throw new AdminUnauthorizedException("Missing or invalid admin API key.");
-        }
-
+        AdminIdentity identity = adminAuthenticationService.authenticate(request);
+        request.setAttribute(AdminIdentity.class.getName(), identity);
         return true;
-    }
-
-    private String normalize(String value) {
-        return value == null ? "" : value.trim();
     }
 }

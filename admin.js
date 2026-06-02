@@ -2,7 +2,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const body = document.body;
     const defaultApiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
     const savedKeyStorageName = "vehicleWallpaperAdminApiKey";
+    const savedTokenStorageName = "vehicleWallpaperAdminAccessToken";
+    const savedUsernameStorageName = "vehicleWallpaperAdminUsername";
     const utf8Decoder = typeof TextDecoder === "function" ? new TextDecoder("utf-8", { fatal: true }) : null;
+    const defaultLoginUsername = "admin";
     const brandLabels = {
         benz: "Mercedes-Benz",
         porsche: "Porsche",
@@ -20,6 +23,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const state = {
         apiKey: "",
+        accessToken: "",
+        authMode: "",
+        adminUsername: "",
+        loginEnabled: true,
+        apiKeyEnabled: true,
+        loginUsernameHint: defaultLoginUsername,
         connected: false,
         dashboard: null,
         wallpapers: [],
@@ -30,6 +39,15 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     const elements = {
+        loginForm: document.getElementById("loginForm"),
+        loginUsernameInput: document.getElementById("loginUsernameInput"),
+        loginPasswordInput: document.getElementById("loginPasswordInput"),
+        rememberLoginCheckbox: document.getElementById("rememberLoginCheckbox"),
+        loginButton: document.getElementById("loginButton"),
+        logoutButton: document.getElementById("logoutButton"),
+        loginSupportCopy: document.getElementById("loginSupportCopy"),
+        toggleLoginPasswordButton: document.getElementById("toggleLoginPasswordButton"),
+        apiKeyFallback: document.getElementById("apiKeyFallback"),
         authForm: document.getElementById("authForm"),
         apiKeyInput: document.getElementById("apiKeyInput"),
         rememberKeyCheckbox: document.getElementById("rememberKeyCheckbox"),
@@ -97,6 +115,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function normalizeValue(value) {
         return value == null ? "" : String(value).trim();
+    }
+
+    function activeTokenStorage() {
+        if (localStorage.getItem(savedTokenStorageName)) {
+            return localStorage;
+        }
+
+        if (sessionStorage.getItem(savedTokenStorageName)) {
+            return sessionStorage;
+        }
+
+        return null;
+    }
+
+    function rememberToken(token, username, shouldPersist) {
+        localStorage.removeItem(savedTokenStorageName);
+        sessionStorage.removeItem(savedTokenStorageName);
+
+        const targetStorage = shouldPersist ? localStorage : sessionStorage;
+        targetStorage.setItem(savedTokenStorageName, token);
+
+        if (username) {
+            localStorage.setItem(savedUsernameStorageName, username);
+        }
+    }
+
+    function readRememberedToken() {
+        return localStorage.getItem(savedTokenStorageName) || sessionStorage.getItem(savedTokenStorageName) || "";
+    }
+
+    function clearRememberedToken() {
+        localStorage.removeItem(savedTokenStorageName);
+        sessionStorage.removeItem(savedTokenStorageName);
+    }
+
+    function restoreSavedUsername() {
+        const savedUsername = localStorage.getItem(savedUsernameStorageName);
+        if (savedUsername) {
+            elements.loginUsernameInput.value = savedUsername;
+        }
     }
 
     function looksLikeMojibake(value) {
@@ -211,12 +269,60 @@ document.addEventListener("DOMContentLoaded", function () {
         renderFeedbackEditor();
     }
 
+    async function loadAuthOptions() {
+        try {
+            const response = await fetch(buildApiUrl("/api/admin/auth/options"), {
+                headers: {
+                    Accept: "application/json"
+                }
+            });
+            const payload = await response.json().catch(function () {
+                return {};
+            });
+
+            state.loginEnabled = Boolean(payload.loginEnabled);
+            state.apiKeyEnabled = Boolean(payload.apiKeyEnabled);
+            state.loginUsernameHint = normalizeValue(payload.loginUsernameHint) || defaultLoginUsername;
+        } catch (error) {
+            state.loginEnabled = true;
+            state.apiKeyEnabled = true;
+            state.loginUsernameHint = defaultLoginUsername;
+        }
+
+        if (!elements.loginUsernameInput.value) {
+            elements.loginUsernameInput.value = state.loginUsernameHint;
+        }
+
+        elements.loginUsernameInput.placeholder = state.loginUsernameHint;
+
+        if (!state.apiKeyEnabled && elements.apiKeyFallback) {
+            elements.apiKeyFallback.hidden = true;
+        }
+
+        if (!state.loginEnabled) {
+            elements.loginForm.querySelectorAll("input, button").forEach(function (element) {
+                if (element !== elements.logoutButton) {
+                    element.disabled = true;
+                }
+            });
+            elements.loginSupportCopy.textContent = "This deployment has not enabled username/password login yet. Use the API key fallback instead.";
+            if (elements.apiKeyFallback) {
+                elements.apiKeyFallback.open = true;
+            }
+        }
+    }
+
     async function fetchAdmin(path, options) {
         const headers = {
-            Accept: "application/json",
-            "X-Admin-API-Key": state.apiKey
+            Accept: "application/json"
         };
         const requestOptions = Object.assign({ method: "GET" }, options || {});
+
+        if (state.accessToken) {
+            headers.Authorization = "Bearer " + state.accessToken;
+        } else if (state.apiKey) {
+            headers["X-Admin-API-Key"] = state.apiKey;
+        }
 
         if (requestOptions.body) {
             headers["Content-Type"] = "application/json";
@@ -230,6 +336,13 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         if (!response.ok) {
+            if (response.status === 401 && state.accessToken) {
+                clearRememberedToken();
+                state.accessToken = "";
+                state.authMode = "";
+                state.adminUsername = "";
+            }
+
             const error = new Error(payload.message || "Admin request failed.");
             error.status = response.status;
             error.payload = payload;
@@ -288,8 +401,68 @@ document.addEventListener("DOMContentLoaded", function () {
         await Promise.all([loadDashboard(), loadWallpapers(), loadFeedback()]);
     }
 
+    async function requestAdminLogin(username, password) {
+        const response = await fetch(buildApiUrl("/api/admin/auth/login"), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            body: JSON.stringify({
+                username: normalizeValue(username),
+                password: normalizeValue(password)
+            })
+        });
+        const payload = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok) {
+            const error = new Error(payload.message || "Admin login failed.");
+            error.status = response.status;
+            error.payload = payload;
+            throw error;
+        }
+
+        return payload;
+    }
+
+    async function connectWithLoginToken(token, username) {
+        state.apiKey = "";
+        state.accessToken = normalizeValue(token);
+        state.authMode = "PASSWORD";
+        state.adminUsername = normalizeValue(username) || state.loginUsernameHint || defaultLoginUsername;
+
+        if (!state.accessToken) {
+            throw new Error("Missing admin access token.");
+        }
+
+        setConnectionStatus("Signing in", "loading");
+        setNotice("Signing in and loading admin dashboard data.", "info");
+
+        try {
+            await loadAllData();
+            state.connected = true;
+            renderWallpaperList();
+            renderWallpaperEditor();
+            renderFeedbackList();
+            renderFeedbackEditor();
+            setConnectionStatus("Logged in", "connected");
+            setNotice("Signed in successfully. Dashboard, catalog, and feedback data are now in sync.", "success");
+        } catch (error) {
+            state.connected = false;
+            clearDataViews();
+            setConnectionStatus("Failed", "error");
+            setNotice(error.message || "Admin sign-in failed.", "error");
+            throw error;
+        }
+    }
+
     async function connectWithApiKey(apiKey) {
         state.apiKey = normalizeValue(apiKey);
+        state.accessToken = "";
+        state.authMode = "API_KEY";
+        state.adminUsername = "";
 
         if (!state.apiKey) {
             throw new Error("Enter a valid admin API key first.");
@@ -305,7 +478,7 @@ document.addEventListener("DOMContentLoaded", function () {
             renderWallpaperEditor();
             renderFeedbackList();
             renderFeedbackEditor();
-            setConnectionStatus("Connected", "connected");
+            setConnectionStatus("API key mode", "connected");
             setNotice("Admin console connected. Dashboard, catalog, and feedback data are now in sync.", "success");
         } catch (error) {
             state.connected = false;
@@ -319,12 +492,16 @@ document.addEventListener("DOMContentLoaded", function () {
     function disconnect(resetInput) {
         state.connected = false;
         state.apiKey = "";
+        state.accessToken = "";
+        state.authMode = "";
+        state.adminUsername = "";
         clearDataViews();
         setConnectionStatus("Disconnected", "idle");
         setNotice("Admin connection cleared.", "info");
 
         if (resetInput) {
             elements.apiKeyInput.value = "";
+            elements.loginPasswordInput.value = "";
         }
     }
 
@@ -608,6 +785,26 @@ document.addEventListener("DOMContentLoaded", function () {
             .replace(/'/g, "&#39;");
     }
 
+    async function handleLoginSubmit(event) {
+        event.preventDefault();
+
+        try {
+            const payload = await requestAdminLogin(elements.loginUsernameInput.value, elements.loginPasswordInput.value);
+            elements.loginPasswordInput.value = "";
+
+            if (elements.rememberLoginCheckbox.checked) {
+                rememberToken(payload.accessToken, payload.username, true);
+            } else {
+                rememberToken(payload.accessToken, payload.username, false);
+            }
+
+            await connectWithLoginToken(payload.accessToken, payload.username);
+            localStorage.setItem(savedUsernameStorageName, payload.username);
+        } catch (error) {
+            // The error is already shown in the notice banner.
+        }
+    }
+
     async function handleConnectSubmit(event) {
         event.preventDefault();
 
@@ -624,15 +821,24 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    function handleLogout() {
+        clearRememberedToken();
+        disconnect(true);
+    }
+
     function handleClearKey() {
         localStorage.removeItem(savedKeyStorageName);
         elements.rememberKeyCheckbox.checked = false;
-        disconnect(true);
+        elements.apiKeyInput.value = "";
+
+        if (state.authMode === "API_KEY") {
+            disconnect(false);
+        }
     }
 
     async function handleRefreshAll() {
         if (!state.connected) {
-            setNotice("Connect with a valid admin API key before refreshing data.", "error");
+            setNotice("Sign in or connect with a valid fallback credential before refreshing data.", "error");
             return;
         }
 
@@ -648,7 +854,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function handleRefreshCatalog() {
         if (!state.connected) {
-            setNotice("Connect first, then trigger a catalog sync.", "error");
+            setNotice("Sign in first, then trigger a catalog sync.", "error");
             return;
         }
 
@@ -762,7 +968,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function bindEvents() {
+        elements.loginForm.addEventListener("submit", handleLoginSubmit);
         elements.authForm.addEventListener("submit", handleConnectSubmit);
+        elements.logoutButton.addEventListener("click", handleLogout);
         elements.clearKeyButton.addEventListener("click", handleClearKey);
         elements.refreshAllButton.addEventListener("click", handleRefreshAll);
         elements.refreshCatalogButton.addEventListener("click", handleRefreshCatalog);
@@ -828,13 +1036,40 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? '<i class="fas fa-eye-slash" aria-hidden="true"></i>'
                 : '<i class="fas fa-eye" aria-hidden="true"></i>';
         });
+
+        elements.toggleLoginPasswordButton.addEventListener("click", function () {
+            const shouldReveal = elements.loginPasswordInput.type === "password";
+            elements.loginPasswordInput.type = shouldReveal ? "text" : "password";
+            elements.toggleLoginPasswordButton.setAttribute("aria-label", shouldReveal ? "Hide password" : "Show password");
+            elements.toggleLoginPasswordButton.innerHTML = shouldReveal
+                ? '<i class="fas fa-eye-slash" aria-hidden="true"></i>'
+                : '<i class="fas fa-eye" aria-hidden="true"></i>';
+        });
     }
 
-    async function bootstrapSavedKey() {
+    async function bootstrapSavedAuth() {
+        restoreSavedUsername();
+        await loadAuthOptions();
+
+        const savedAccessToken = readRememberedToken();
+        if (savedAccessToken) {
+            try {
+                await connectWithLoginToken(savedAccessToken, localStorage.getItem(savedUsernameStorageName));
+                if (activeTokenStorage() === localStorage) {
+                    elements.rememberLoginCheckbox.checked = true;
+                }
+                return;
+            } catch (error) {
+                clearRememberedToken();
+            }
+        }
+
         const savedApiKey = localStorage.getItem(savedKeyStorageName);
         if (!savedApiKey) {
             setConnectionStatus("Disconnected", "idle");
-            setNotice("Enter an admin API key to load the protected console.", "info");
+            setNotice(state.loginEnabled
+                ? "Sign in with your admin username and password to load the protected console."
+                : "Enter an admin API key to load the protected console.", "info");
             renderDashboard();
             renderWallpaperList();
             renderWallpaperEditor();
@@ -854,5 +1089,5 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     bindEvents();
-    bootstrapSavedKey();
+    bootstrapSavedAuth();
 });

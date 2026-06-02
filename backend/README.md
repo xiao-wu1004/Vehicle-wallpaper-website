@@ -63,6 +63,9 @@ MYSQL_URL=jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allowPublic
 MYSQL_USER=your_mysql_user
 MYSQL_PASSWORD=your_mysql_password
 ADMIN_API_KEY=your_admin_api_key
+ADMIN_USERNAME=your_admin_username
+ADMIN_PASSWORD=your_admin_password
+ADMIN_TOKEN_SECRET=your_admin_token_secret
 ```
 
 ## Run In PowerShell
@@ -82,6 +85,9 @@ $env:MYSQL_URL="jdbc:mysql://localhost:3306/vehicle_wallpaper?useSSL=false&allow
 $env:MYSQL_USER="your_mysql_user"
 $env:MYSQL_PASSWORD="your_mysql_password"
 $env:ADMIN_API_KEY="your_admin_api_key"
+$env:ADMIN_USERNAME="your_admin_username"
+$env:ADMIN_PASSWORD="your_admin_password"
+$env:ADMIN_TOKEN_SECRET="your_admin_token_secret"
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
@@ -161,7 +167,7 @@ Important note:
 
 ## Admin APIs
 
-These endpoints are intended for the next backend management layer.
+These endpoints power the live admin console.
 
 - `GET /api/admin/dashboard`
 - `POST /api/admin/catalog/refresh`
@@ -169,19 +175,33 @@ These endpoints are intended for the next backend management layer.
 - `PATCH /api/admin/wallpapers/{wallpaperId}`
 - `GET /api/admin/feedback`
 - `PATCH /api/admin/feedback/{feedbackId}`
+- `GET /api/admin/auth/options`
+- `POST /api/admin/auth/login`
 
-Current note:
+Authentication options:
 
-- Admin APIs are protected by API key authentication.
+- Admin APIs accept either a bearer token or the legacy API key fallback.
 - Header name: `X-Admin-API-Key`
-- Configure the key with environment variable `ADMIN_API_KEY`
-- If `ADMIN_API_KEY` is missing, admin APIs will return `503 Service Unavailable`
-- If the header is missing or incorrect, admin APIs will return `401 Unauthorized`
+- Login endpoint: `POST /api/admin/auth/login`
+- Bearer header: `Authorization: Bearer <accessToken>`
+- Configure the fallback key with environment variable `ADMIN_API_KEY`
+- Configure a dedicated login with `ADMIN_USERNAME` and `ADMIN_PASSWORD`
+- Optionally configure token signing with `ADMIN_TOKEN_SECRET`
+- Token lifetime defaults to `12` hours and can be changed with `ADMIN_TOKEN_TTL_HOURS`
+
+Fallback behavior:
+
+- If `ADMIN_USERNAME` is empty but `ADMIN_API_KEY` exists, login defaults to username `admin`
+- If `ADMIN_PASSWORD` is empty but `ADMIN_API_KEY` exists, login defaults to the current API key
+- If both login and API key are missing, protected admin APIs will return `503 Service Unavailable`
+- If the token or API key is missing or invalid, protected admin APIs will return `401 Unauthorized`
 
 ## Admin Page
 
 - Open [http://localhost:8080/admin](http://localhost:8080/admin) or [http://localhost:8080/admin.html](http://localhost:8080/admin.html)
-- Enter the configured `ADMIN_API_KEY`
+- Sign in with the configured admin username and password
+- Or expand the fallback section and enter `ADMIN_API_KEY`
+- The page can remember the bearer token or fallback key locally in the browser
 - The page talks directly to the protected `/api/admin/**` endpoints for dashboard stats, catalog refresh, wallpaper edits, and feedback moderation
 
 ## Cloud Deployment
@@ -198,7 +218,7 @@ Recommended daily workflow:
 2. Start the backend with the `mysql` profile.
 3. Open the public site at [http://localhost:8080/main.html](http://localhost:8080/main.html).
 4. Open the admin console at [http://localhost:8080/admin](http://localhost:8080/admin).
-5. Enter the same value you configured in `ADMIN_API_KEY`.
+5. Sign in with the username and password you configured for the admin console, or use the fallback API key section.
 
 What each part is for:
 
@@ -207,10 +227,11 @@ What each part is for:
 - `/api/feedback`: public feedback submission API
 - `/admin`: admin management page
 - `/api/admin/**`: protected admin APIs for stats, sync, wallpaper edits, and feedback moderation
+- `/api/admin/auth/**`: admin login bootstrap and token issuance
 
 Typical admin actions:
 
-1. Connect with the API key in the admin page.
+1. Sign in on the admin page, or use the fallback API key section if needed.
 2. Check dashboard stats to confirm catalog and feedback counts.
 3. Use `Run catalog sync` after you add, remove, or rename images under `cars/`.
 4. Use `Wallpaper management` to update wallpaper title, sort order, and active state.

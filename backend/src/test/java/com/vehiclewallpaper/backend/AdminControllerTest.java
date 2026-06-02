@@ -5,6 +5,8 @@ import com.vehiclewallpaper.backend.catalog.WallpaperRepository;
 import com.vehiclewallpaper.backend.feedback.FeedbackMessage;
 import com.vehiclewallpaper.backend.feedback.FeedbackRepository;
 import com.vehiclewallpaper.backend.feedback.FeedbackStatus;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,6 +35,9 @@ class AdminControllerTest {
 
     @Autowired
     private FeedbackRepository feedbackRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void shouldExposeDashboardMetrics() throws Exception {
@@ -103,6 +108,51 @@ class AdminControllerTest {
     void shouldRejectAdminRequestWithoutApiKey() throws Exception {
         mockMvc.perform(get("/api/admin/dashboard"))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.message").value("Missing or invalid admin API key."));
+            .andExpect(jsonPath("$.message").value("缺少有效的管理员登录凭证。"));
+    }
+
+    @Test
+    void shouldLoginWithAdminUsernameAndPassword() throws Exception {
+        mockMvc.perform(post("/api/admin/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"test-admin\",\"password\":\"test-admin-password\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.username").value("test-admin"))
+            .andExpect(jsonPath("$.authMode").value("PASSWORD"))
+            .andExpect(jsonPath("$.accessToken").isString())
+            .andExpect(jsonPath("$.expiresAt").exists());
+    }
+
+    @Test
+    void shouldExposeDashboardMetricsWithBearerToken() throws Exception {
+        String token = loginAndExtractAccessToken();
+
+        mockMvc.perform(get("/api/admin/dashboard")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalBrands").value(12))
+            .andExpect(jsonPath("$.totalWallpapers").isNumber());
+    }
+
+    @Test
+    void shouldRejectInvalidAdminLogin() throws Exception {
+        mockMvc.perform(post("/api/admin/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"test-admin\",\"password\":\"wrong-password\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("管理员账号或密码错误。"));
+    }
+
+    private String loginAndExtractAccessToken() throws Exception {
+        String responseBody = mockMvc.perform(post("/api/admin/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"test-admin\",\"password\":\"test-admin-password\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        JsonNode payload = objectMapper.readTree(responseBody);
+        return payload.get("accessToken").asText();
     }
 }

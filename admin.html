@@ -46,37 +46,77 @@
                 <div class="panel-heading">
                     <div>
                         <p class="eyebrow">Protected Access</p>
-                        <h2 id="authPanelTitle">API Key Session</h2>
+                        <h2 id="authPanelTitle">Admin Sign-In</h2>
                     </div>
                     <span class="status-pill is-idle" id="connectionStatus">Disconnected</span>
                 </div>
 
-                <form id="authForm" class="stack-form" novalidate>
-                    <label class="field-group" for="apiKeyInput">
-                        <span>Admin API Key</span>
+                <form id="loginForm" class="stack-form" novalidate>
+                    <label class="field-group" for="loginUsernameInput">
+                        <span>Admin username</span>
+                        <input type="text" id="loginUsernameInput" name="username" autocomplete="username"
+                            placeholder="admin">
+                    </label>
+
+                    <label class="field-group" for="loginPasswordInput">
+                        <span>Password</span>
                         <div class="input-row">
-                            <input type="password" id="apiKeyInput" name="apiKey" autocomplete="current-password"
-                                placeholder="Enter the value used for X-Admin-API-Key">
-                            <button type="button" class="secondary-button icon-button" id="toggleApiKeyButton"
-                                aria-label="Show API key">
+                            <input type="password" id="loginPasswordInput" name="password" autocomplete="current-password"
+                                placeholder="Enter your admin password">
+                            <button type="button" class="secondary-button icon-button" id="toggleLoginPasswordButton"
+                                aria-label="Show password">
                                 <i class="fas fa-eye" aria-hidden="true"></i>
                             </button>
                         </div>
                     </label>
 
-                    <label class="checkbox-row" for="rememberKeyCheckbox">
-                        <input type="checkbox" id="rememberKeyCheckbox" name="rememberKey">
-                        <span>Remember this key in this browser</span>
+                    <label class="checkbox-row" for="rememberLoginCheckbox">
+                        <input type="checkbox" id="rememberLoginCheckbox" name="rememberLogin">
+                        <span>Remember this login on this browser</span>
                     </label>
 
                     <div class="button-row">
-                        <button type="submit" class="primary-button" id="connectButton">Connect</button>
-                        <button type="button" class="secondary-button" id="clearKeyButton">Clear</button>
+                        <button type="submit" class="primary-button" id="loginButton">Sign in</button>
+                        <button type="button" class="secondary-button" id="logoutButton">Log out</button>
                     </div>
 
-                    <p class="support-copy">Every request is sent with the <code>X-Admin-API-Key</code> header. If the
-                        key is missing or incorrect, the admin APIs return <code>401 Unauthorized</code>.</p>
+                    <p class="support-copy" id="loginSupportCopy">Sign in with username and password for the normal
+                        admin flow. If this deployment has not set a dedicated password yet, the current API key can
+                        still act as the default login password and issue a bearer token.</p>
                 </form>
+
+                <div class="auth-divider" aria-hidden="true"><span>Fallback</span></div>
+
+                <details class="auth-fallback" id="apiKeyFallback">
+                    <summary>Use API key instead</summary>
+
+                    <form id="authForm" class="stack-form auth-fallback-form" novalidate>
+                        <label class="field-group" for="apiKeyInput">
+                            <span>Admin API Key</span>
+                            <div class="input-row">
+                                <input type="password" id="apiKeyInput" name="apiKey" autocomplete="off"
+                                    placeholder="Enter the value used for X-Admin-API-Key">
+                                <button type="button" class="secondary-button icon-button" id="toggleApiKeyButton"
+                                    aria-label="Show API key">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </label>
+
+                        <label class="checkbox-row" for="rememberKeyCheckbox">
+                            <input type="checkbox" id="rememberKeyCheckbox" name="rememberKey">
+                            <span>Remember this key in this browser</span>
+                        </label>
+
+                        <div class="button-row">
+                            <button type="submit" class="secondary-button" id="connectButton">Use API key</button>
+                            <button type="button" class="secondary-button" id="clearKeyButton">Clear</button>
+                        </div>
+
+                        <p class="support-copy">The fallback mode sends <code>X-Admin-API-Key</code> on each request and
+                            keeps compatibility with the existing protected admin APIs.</p>
+                    </form>
+                </details>
             </section>
 
             <section class="sidebar-panel" aria-labelledby="shortcutPanelTitle">
@@ -104,9 +144,9 @@
                 <div class="hero-copy">
                     <p class="eyebrow">Operations Surface</p>
                     <h2>Run the site like a product, not just a static page.</h2>
-                    <p>This console talks directly to the protected <code>/api/admin/**</code> endpoints. Once the key
-                        is valid, you can review metrics, maintain wallpaper metadata, and moderate highlighted user
-                        feedback without leaving the browser.</p>
+                    <p>This console talks directly to the protected <code>/api/admin/**</code> endpoints. Once your
+                        login or fallback API key is valid, you can review metrics, maintain wallpaper metadata, and
+                        moderate highlighted user feedback without leaving the browser.</p>
                 </div>
                 <div class="hero-actions">
                     <button type="button" class="primary-button" id="refreshAllButton">

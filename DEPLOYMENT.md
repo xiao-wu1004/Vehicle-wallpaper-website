@@ -59,10 +59,19 @@ MYSQL_URL=jdbc:mysql://your_tidb_host:4000/vehicle_wallpaper?sslMode=VERIFY_IDEN
 MYSQL_USER=your_tidb_user
 MYSQL_PASSWORD=your_tidb_password
 ADMIN_API_KEY=your_strong_admin_api_key
+ADMIN_USERNAME=your_admin_username
+ADMIN_PASSWORD=your_admin_password
+ADMIN_TOKEN_SECRET=your_admin_token_secret
 APP_FRONTEND_ROOT_PATH=/app/site
 APP_CATALOG_ROOT_PATH=/app/site/cars
 APP_CATALOG_SYNC_ON_STARTUP=true
 ```
+
+Login fallback behavior:
+
+- If `ADMIN_USERNAME` is omitted but `ADMIN_API_KEY` exists, the login username defaults to `admin`
+- If `ADMIN_PASSWORD` is omitted but `ADMIN_API_KEY` exists, the login password defaults to the API key
+- The admin page can use either bearer-token login or the legacy API key fallback
 
 Recommended Render settings:
 
@@ -128,10 +137,11 @@ Check these URLs after deployment:
 Admin verification steps:
 
 1. Open the admin page on Vercel.
-2. Enter the same `ADMIN_API_KEY` that you configured in Render.
-3. Confirm dashboard metrics load.
-4. Confirm wallpaper list and feedback list load.
-5. Submit a public feedback form on the frontend and confirm it appears in admin review.
+2. Sign in with the username and password configured in Render.
+3. Or expand the fallback section and enter the same `ADMIN_API_KEY` configured in Render.
+4. Confirm dashboard metrics load.
+5. Confirm wallpaper list and feedback list load.
+6. Submit a public feedback form on the frontend and confirm it appears in admin review.
 
 ## Daily Update Workflow
 
