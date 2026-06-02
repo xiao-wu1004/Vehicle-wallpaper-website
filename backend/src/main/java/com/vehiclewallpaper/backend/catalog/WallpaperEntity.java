@@ -43,6 +43,15 @@ public class WallpaperEntity {
     @Column(name = "download_url", nullable = false, length = 512)
     private String downloadUrl;
 
+    @Column(name = "storage_provider", nullable = false, length = 32)
+    private String storageProvider = "filesystem";
+
+    @Column(name = "storage_key", length = 512)
+    private String storageKey;
+
+    @Column(name = "preview_storage_key", length = 512)
+    private String previewStorageKey;
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
@@ -131,6 +140,30 @@ public class WallpaperEntity {
 
     public void setDownloadUrl(String downloadUrl) {
         this.downloadUrl = downloadUrl;
+    }
+
+    public String getStorageProvider() {
+        return storageProvider;
+    }
+
+    public void setStorageProvider(String storageProvider) {
+        this.storageProvider = storageProvider;
+    }
+
+    public String getStorageKey() {
+        return storageKey;
+    }
+
+    public void setStorageKey(String storageKey) {
+        this.storageKey = storageKey;
+    }
+
+    public String getPreviewStorageKey() {
+        return previewStorageKey;
+    }
+
+    public void setPreviewStorageKey(String previewStorageKey) {
+        this.previewStorageKey = previewStorageKey;
     }
 
     public int getSortOrder() {

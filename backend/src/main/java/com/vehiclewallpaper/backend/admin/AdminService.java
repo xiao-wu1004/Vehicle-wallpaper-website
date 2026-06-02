@@ -4,12 +4,16 @@ import com.vehiclewallpaper.backend.catalog.BrandEntity;
 import com.vehiclewallpaper.backend.catalog.BrandRepository;
 import com.vehiclewallpaper.backend.catalog.CatalogOverviewResponse;
 import com.vehiclewallpaper.backend.catalog.CatalogService;
+import com.vehiclewallpaper.backend.catalog.WallpaperDownloadEventRepository;
 import com.vehiclewallpaper.backend.catalog.WallpaperEntity;
+import com.vehiclewallpaper.backend.catalog.WallpaperFavoriteRepository;
 import com.vehiclewallpaper.backend.catalog.WallpaperRepository;
 import com.vehiclewallpaper.backend.config.CatalogProperties;
 import com.vehiclewallpaper.backend.feedback.FeedbackMessage;
 import com.vehiclewallpaper.backend.feedback.FeedbackRepository;
 import com.vehiclewallpaper.backend.feedback.FeedbackStatus;
+import com.vehiclewallpaper.backend.storage.StoredAsset;
+import com.vehiclewallpaper.backend.storage.WallpaperStorageManager;
 import com.vehiclewallpaper.backend.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,21 +44,30 @@ public class AdminService {
     private final CatalogProperties catalogProperties;
     private final BrandRepository brandRepository;
     private final WallpaperRepository wallpaperRepository;
+    private final WallpaperFavoriteRepository wallpaperFavoriteRepository;
+    private final WallpaperDownloadEventRepository wallpaperDownloadEventRepository;
     private final FeedbackRepository feedbackRepository;
     private final AdminOperationLogService adminOperationLogService;
+    private final WallpaperStorageManager wallpaperStorageManager;
 
     public AdminService(CatalogService catalogService,
                         CatalogProperties catalogProperties,
                         BrandRepository brandRepository,
                         WallpaperRepository wallpaperRepository,
+                        WallpaperFavoriteRepository wallpaperFavoriteRepository,
+                        WallpaperDownloadEventRepository wallpaperDownloadEventRepository,
                         FeedbackRepository feedbackRepository,
-                        AdminOperationLogService adminOperationLogService) {
+                        AdminOperationLogService adminOperationLogService,
+                        WallpaperStorageManager wallpaperStorageManager) {
         this.catalogService = catalogService;
         this.catalogProperties = catalogProperties;
         this.brandRepository = brandRepository;
         this.wallpaperRepository = wallpaperRepository;
+        this.wallpaperFavoriteRepository = wallpaperFavoriteRepository;
+        this.wallpaperDownloadEventRepository = wallpaperDownloadEventRepository;
         this.feedbackRepository = feedbackRepository;
         this.adminOperationLogService = adminOperationLogService;
+        this.wallpaperStorageManager = wallpaperStorageManager;
     }
 
     @Transactional(readOnly = true)
@@ -163,14 +176,7 @@ public class AdminService {
         brand = brandRepository.save(brand);
 
         for (WallpaperEntity wallpaper : wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId())) {
-            String originalFileName = wallpaper.getFileName();
-            String previewFileName = extractFileNameFromPublicUrl(wallpaper.getPreviewUrl());
-            String fullUrl = buildBrandOriginalUrl(folderName, originalFileName);
-            wallpaper.setFullUrl(fullUrl);
-            wallpaper.setDownloadUrl(fullUrl);
-            wallpaper.setPreviewUrl(previewFileName.isEmpty() || previewFileName.equals(originalFileName)
-                ? fullUrl
-                : buildBrandPreviewUrl(folderName, previewFileName));
+            realignWallpaperStorageAfterBrandRename(wallpaper, oldFolderName, folderName);
             wallpaperRepository.save(wallpaper);
         }
 
@@ -194,6 +200,8 @@ public class AdminService {
             deleteWallpaperFiles(wallpaper);
         }
 
+        wallpaperFavoriteRepository.deleteByBrandId(brand.getId());
+        wallpaperDownloadEventRepository.deleteByBrandId(brand.getId());
         wallpaperRepository.deleteByBrandId(brand.getId());
         brandRepository.delete(brand);
 
@@ -246,6 +254,7 @@ public class AdminService {
         String baseName = stripExtension(sanitizedOriginalFileName);
         String storedBaseName = nextAvailableBaseName(brand.getFolderName(), baseName, originalExtension);
         String storedOriginalFileName = storedBaseName + "." + originalExtension;
+        String originalStorageKey = buildOriginalStorageKey(brand.getFolderName(), storedOriginalFileName);
 
         String previewExtension = "";
         if (previewFile != null && !previewFile.isEmpty()) {
@@ -253,21 +262,18 @@ public class AdminService {
             requireSupportedImageExtension(previewExtension, "preview");
         }
 
-        Path originalTarget = resolveBrandDirectory(brand.getFolderName()).resolve(storedOriginalFileName).normalize();
-        Path previewTarget = null;
-
         try {
             ensureBrandDirectories(brand.getFolderName());
-            copyMultipartFile(file, originalTarget);
+            StoredAsset originalAsset = wallpaperStorageManager.store(originalStorageKey, file);
 
+            String previewStorageKey = originalStorageKey;
             String previewUrl;
             if (previewFile != null && !previewFile.isEmpty()) {
                 String storedPreviewFileName = storedBaseName + "." + previewExtension;
-                previewTarget = resolveBrandPreviewDirectory(brand.getFolderName()).resolve(storedPreviewFileName).normalize();
-                copyMultipartFile(previewFile, previewTarget);
-                previewUrl = buildBrandPreviewUrl(brand.getFolderName(), storedPreviewFileName);
+                previewStorageKey = buildPreviewStorageKey(brand.getFolderName(), storedPreviewFileName);
+                previewUrl = wallpaperStorageManager.store(previewStorageKey, previewFile).getPublicUrl();
             } else {
-                previewUrl = buildBrandOriginalUrl(brand.getFolderName(), storedOriginalFileName);
+                previewUrl = originalAsset.getPublicUrl();
             }
 
             WallpaperEntity wallpaper = new WallpaperEntity();
@@ -275,9 +281,12 @@ public class AdminService {
             wallpaper.setSlug(nextWallpaperSlug(brand.getSlug()));
             wallpaper.setTitle(normalizeWallpaperTitle(title, brand, storedOriginalFileName, sortOrder));
             wallpaper.setFileName(storedOriginalFileName);
+            wallpaper.setStorageProvider(originalAsset.getProvider());
+            wallpaper.setStorageKey(originalStorageKey);
+            wallpaper.setPreviewStorageKey(previewStorageKey);
             wallpaper.setPreviewUrl(previewUrl);
-            wallpaper.setFullUrl(buildBrandOriginalUrl(brand.getFolderName(), storedOriginalFileName));
-            wallpaper.setDownloadUrl(buildBrandOriginalUrl(brand.getFolderName(), storedOriginalFileName));
+            wallpaper.setFullUrl(originalAsset.getPublicUrl());
+            wallpaper.setDownloadUrl(originalAsset.getPublicUrl());
             wallpaper.setSortOrder(sortOrder == null ? nextWallpaperSortOrder(brand.getId()) : sortOrder.intValue());
             wallpaper.setActive(active == null || active.booleanValue());
 
@@ -291,8 +300,13 @@ public class AdminService {
             );
             return toWallpaperResponse(wallpaper);
         } catch (IOException exception) {
-            deleteFileIfExists(originalTarget);
-            deleteFileIfExists(previewTarget);
+            deleteStorageSilently(wallpaperStorageManager.getDefaultProvider(), originalStorageKey);
+            if (previewFile != null && !previewFile.isEmpty()) {
+                deleteStorageSilently(
+                    wallpaperStorageManager.getDefaultProvider(),
+                    buildPreviewStorageKey(brand.getFolderName(), storedBaseName + "." + previewExtension)
+                );
+            }
             throw new IllegalStateException("Failed to store wallpaper files.", exception);
         }
     }
@@ -305,6 +319,8 @@ public class AdminService {
         String brandName = wallpaper.getBrand().getDisplayName();
 
         deleteWallpaperFiles(wallpaper);
+        wallpaperFavoriteRepository.deleteByWallpaperId(wallpaper.getId());
+        wallpaperDownloadEventRepository.deleteByWallpaperId(wallpaper.getId());
         wallpaperRepository.delete(wallpaper);
         catalogService.invalidateOverview();
         adminOperationLogService.logCurrentAction(
@@ -582,11 +598,12 @@ public class AdminService {
 
     private String nextAvailableBaseName(String folderName, String baseName, String extension) {
         String normalizedBaseName = baseName == null || baseName.trim().isEmpty() ? "wallpaper" : baseName.trim();
+        List<WallpaperEntity> existingWallpapers = wallpaperRepository.findAllForAdmin();
         int suffix = 0;
         while (true) {
             String candidate = suffix == 0 ? normalizedBaseName : normalizedBaseName + "-" + suffix;
-            Path target = resolveBrandDirectory(folderName).resolve(candidate + "." + extension).normalize();
-            if (!Files.exists(target)) {
+            String expectedFileName = candidate + "." + extension;
+            if (!fileNameExistsForBrand(existingWallpapers, folderName, expectedFileName)) {
                 return candidate;
             }
             suffix++;
@@ -641,23 +658,34 @@ public class AdminService {
     }
 
     private void deleteWallpaperFiles(WallpaperEntity wallpaper) {
-        deleteFileIfExists(resolveBrandDirectory(wallpaper.getBrand().getFolderName()).resolve(wallpaper.getFileName()).normalize());
+        String provider = normalizedStorageProvider(wallpaper);
+        String originalKey = normalizeStorageKey(
+            wallpaper.getStorageKey(),
+            buildOriginalStorageKey(wallpaper.getBrand().getFolderName(), wallpaper.getFileName())
+        );
+        deleteFileIfExists(provider, originalKey);
 
         String previewFileName = extractFileNameFromPublicUrl(wallpaper.getPreviewUrl());
-        if (!previewFileName.isEmpty() && !previewFileName.equals(wallpaper.getFileName())) {
-            deleteFileIfExists(resolveBrandPreviewDirectory(wallpaper.getBrand().getFolderName()).resolve(previewFileName).normalize());
+        String previewKey = normalizeStorageKey(
+            wallpaper.getPreviewStorageKey(),
+            previewFileName.isEmpty() || previewFileName.equals(wallpaper.getFileName())
+                ? originalKey
+                : buildPreviewStorageKey(wallpaper.getBrand().getFolderName(), previewFileName)
+        );
+        if (!previewKey.equals(originalKey)) {
+            deleteFileIfExists(provider, previewKey);
         }
     }
 
-    private void deleteFileIfExists(Path file) {
-        if (file == null) {
+    private void deleteFileIfExists(String provider, String storageKey) {
+        if (storageKey == null || storageKey.trim().isEmpty()) {
             return;
         }
 
         try {
-            Files.deleteIfExists(file);
+            wallpaperStorageManager.delete(provider, storageKey);
         } catch (IOException exception) {
-            throw new IllegalStateException("Failed to delete file: " + file, exception);
+            throw new IllegalStateException("Failed to delete file: " + storageKey, exception);
         }
     }
 
@@ -678,12 +706,6 @@ public class AdminService {
                 });
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to inspect directory for deletion: " + directory, exception);
-        }
-    }
-
-    private void copyMultipartFile(MultipartFile multipartFile, Path target) throws IOException {
-        try (InputStream inputStream = multipartFile.getInputStream()) {
-            Files.copy(inputStream, target);
         }
     }
 
@@ -722,6 +744,90 @@ public class AdminService {
             return URLEncoder.encode(rawSegment, StandardCharsets.UTF_8.name()).replace("+", "%20");
         } catch (UnsupportedEncodingException exception) {
             throw new IllegalStateException("Unable to encode file path segment.", exception);
+        }
+    }
+
+    private boolean fileNameExistsForBrand(List<WallpaperEntity> wallpapers, String folderName, String fileName) {
+        for (WallpaperEntity wallpaper : wallpapers) {
+            if (wallpaper.getBrand() != null
+                && folderName.equalsIgnoreCase(wallpaper.getBrand().getFolderName())
+                && fileName.equalsIgnoreCase(wallpaper.getFileName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void realignWallpaperStorageAfterBrandRename(WallpaperEntity wallpaper, String oldFolderName, String newFolderName) {
+        String storageProvider = normalizedStorageProvider(wallpaper);
+        String oldOriginalKey = normalizeStorageKey(
+            wallpaper.getStorageKey(),
+            buildOriginalStorageKey(oldFolderName, wallpaper.getFileName())
+        );
+        String newOriginalKey = buildOriginalStorageKey(newFolderName, wallpaper.getFileName());
+
+        String previewFileName = extractFileNameFromPublicUrl(wallpaper.getPreviewUrl());
+        if (previewFileName.isEmpty()) {
+            previewFileName = wallpaper.getFileName();
+        }
+
+        String oldPreviewKey = normalizeStorageKey(
+            wallpaper.getPreviewStorageKey(),
+            previewFileName.equals(wallpaper.getFileName())
+                ? oldOriginalKey
+                : buildPreviewStorageKey(oldFolderName, previewFileName)
+        );
+        String newPreviewKey = previewFileName.equals(wallpaper.getFileName())
+            ? newOriginalKey
+            : buildPreviewStorageKey(newFolderName, previewFileName);
+
+        try {
+            StoredAsset originalAsset = wallpaperStorageManager.move(storageProvider, oldOriginalKey, newOriginalKey);
+            wallpaper.setStorageProvider(originalAsset.getProvider());
+            wallpaper.setStorageKey(newOriginalKey);
+            wallpaper.setFullUrl(originalAsset.getPublicUrl());
+            wallpaper.setDownloadUrl(originalAsset.getPublicUrl());
+
+            if (oldPreviewKey.equals(oldOriginalKey)) {
+                wallpaper.setPreviewStorageKey(newOriginalKey);
+                wallpaper.setPreviewUrl(originalAsset.getPublicUrl());
+            } else {
+                StoredAsset previewAsset = wallpaperStorageManager.move(storageProvider, oldPreviewKey, newPreviewKey);
+                wallpaper.setPreviewStorageKey(newPreviewKey);
+                wallpaper.setPreviewUrl(previewAsset.getPublicUrl());
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to rename wallpaper storage assets.", exception);
+        }
+    }
+
+    private String buildOriginalStorageKey(String folderName, String fileName) {
+        return folderName + "/" + fileName;
+    }
+
+    private String buildPreviewStorageKey(String folderName, String fileName) {
+        return "_thumb/" + folderName + "/" + fileName;
+    }
+
+    private String normalizedStorageProvider(WallpaperEntity wallpaper) {
+        String provider = wallpaper.getStorageProvider();
+        return provider == null || provider.trim().isEmpty()
+            ? "filesystem"
+            : provider.trim();
+    }
+
+    private String normalizeStorageKey(String existingStorageKey, String fallbackStorageKey) {
+        String candidate = existingStorageKey == null || existingStorageKey.trim().isEmpty()
+            ? fallbackStorageKey
+            : existingStorageKey;
+        return candidate.replace("\\", "/");
+    }
+
+    private void deleteStorageSilently(String provider, String storageKey) {
+        try {
+            wallpaperStorageManager.delete(provider, storageKey);
+        } catch (IOException ignored) {
+            // Best-effort cleanup for partially uploaded files.
         }
     }
 
