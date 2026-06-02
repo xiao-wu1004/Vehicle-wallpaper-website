@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -42,17 +41,20 @@ public class AdminService {
     private final BrandRepository brandRepository;
     private final WallpaperRepository wallpaperRepository;
     private final FeedbackRepository feedbackRepository;
+    private final AdminOperationLogService adminOperationLogService;
 
     public AdminService(CatalogService catalogService,
                         CatalogProperties catalogProperties,
                         BrandRepository brandRepository,
                         WallpaperRepository wallpaperRepository,
-                        FeedbackRepository feedbackRepository) {
+                        FeedbackRepository feedbackRepository,
+                        AdminOperationLogService adminOperationLogService) {
         this.catalogService = catalogService;
         this.catalogProperties = catalogProperties;
         this.brandRepository = brandRepository;
         this.wallpaperRepository = wallpaperRepository;
         this.feedbackRepository = feedbackRepository;
+        this.adminOperationLogService = adminOperationLogService;
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +84,14 @@ public class AdminService {
 
     @Transactional
     public CatalogOverviewResponse refreshCatalog() {
-        return catalogService.refreshCatalog();
+        CatalogOverviewResponse overview = catalogService.refreshCatalog();
+        adminOperationLogService.logCurrentAction(
+            "CATALOG_REFRESH",
+            "CATALOG",
+            "public-gallery",
+            "Ran a manual catalog sync from the admin console."
+        );
+        return overview;
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +127,12 @@ public class AdminService {
 
         brand = brandRepository.save(brand);
         catalogService.invalidateOverview();
+        adminOperationLogService.logCurrentAction(
+            "BRAND_CREATE",
+            "BRAND",
+            brand.getId().toString(),
+            "Created brand \"" + brand.getDisplayName() + "\" with slug \"" + brand.getSlug() + "\"."
+        );
         return toBrandResponse(brand);
     }
 
@@ -160,6 +175,12 @@ public class AdminService {
         }
 
         catalogService.invalidateOverview();
+        adminOperationLogService.logCurrentAction(
+            "BRAND_UPDATE",
+            "BRAND",
+            brand.getId().toString(),
+            "Updated brand \"" + brand.getDisplayName() + "\" and folder \"" + brand.getFolderName() + "\"."
+        );
         return toBrandResponse(brand);
     }
 
@@ -167,6 +188,7 @@ public class AdminService {
     public void deleteBrand(Long brandId) {
         BrandEntity brand = brandRepository.findById(brandId)
             .orElseThrow(() -> new ResourceNotFoundException("Brand not found: " + brandId));
+        int wallpaperCount = wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId()).size();
 
         for (WallpaperEntity wallpaper : wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId())) {
             deleteWallpaperFiles(wallpaper);
@@ -178,6 +200,12 @@ public class AdminService {
         deleteDirectoryIfExists(resolveBrandDirectory(brand.getFolderName()));
         deleteDirectoryIfExists(resolveBrandPreviewDirectory(brand.getFolderName()));
         catalogService.invalidateOverview();
+        adminOperationLogService.logCurrentAction(
+            "BRAND_DELETE",
+            "BRAND",
+            brandId.toString(),
+            "Deleted brand \"" + brand.getDisplayName() + "\" and removed " + wallpaperCount + " wallpaper record(s)."
+        );
     }
 
     @Transactional(readOnly = true)
@@ -255,6 +283,12 @@ public class AdminService {
 
             wallpaper = wallpaperRepository.save(wallpaper);
             catalogService.invalidateOverview();
+            adminOperationLogService.logCurrentAction(
+                "WALLPAPER_UPLOAD",
+                "WALLPAPER",
+                wallpaper.getId().toString(),
+                "Uploaded wallpaper \"" + wallpaper.getTitle() + "\" for brand \"" + brand.getDisplayName() + "\"."
+            );
             return toWallpaperResponse(wallpaper);
         } catch (IOException exception) {
             deleteFileIfExists(originalTarget);
@@ -267,10 +301,18 @@ public class AdminService {
     public void deleteWallpaper(Long wallpaperId) {
         WallpaperEntity wallpaper = wallpaperRepository.findWithBrandById(wallpaperId)
             .orElseThrow(() -> new ResourceNotFoundException("Wallpaper not found: " + wallpaperId));
+        String wallpaperTitle = wallpaper.getTitle();
+        String brandName = wallpaper.getBrand().getDisplayName();
 
         deleteWallpaperFiles(wallpaper);
         wallpaperRepository.delete(wallpaper);
         catalogService.invalidateOverview();
+        adminOperationLogService.logCurrentAction(
+            "WALLPAPER_DELETE",
+            "WALLPAPER",
+            wallpaperId.toString(),
+            "Deleted wallpaper \"" + wallpaperTitle + "\" from brand \"" + brandName + "\"."
+        );
     }
 
     @Transactional
@@ -300,6 +342,12 @@ public class AdminService {
 
         wallpaper = wallpaperRepository.save(wallpaper);
         catalogService.invalidateOverview();
+        adminOperationLogService.logCurrentAction(
+            "WALLPAPER_UPDATE",
+            "WALLPAPER",
+            wallpaper.getId().toString(),
+            "Updated wallpaper \"" + wallpaper.getTitle() + "\"."
+        );
         return toWallpaperResponse(wallpaper);
     }
 
@@ -325,6 +373,11 @@ public class AdminService {
         return responses;
     }
 
+    @Transactional(readOnly = true)
+    public List<AdminOperationLogResponse> getOperationLogs(int limit) {
+        return adminOperationLogService.getRecentLogs(limit);
+    }
+
     @Transactional
     public AdminFeedbackResponse updateFeedback(Long feedbackId, AdminFeedbackUpdateRequest request) {
         if (request.getStatus() == null && request.getFeatured() == null) {
@@ -342,7 +395,15 @@ public class AdminService {
             message.setFeatured(request.getFeatured().booleanValue());
         }
 
-        return toFeedbackResponse(feedbackRepository.save(message));
+        FeedbackMessage updatedMessage = feedbackRepository.save(message);
+        adminOperationLogService.logCurrentAction(
+            "FEEDBACK_UPDATE",
+            "FEEDBACK",
+            updatedMessage.getId().toString(),
+            "Updated feedback review to status " + updatedMessage.getStatus().name()
+                + " and featured=" + updatedMessage.isFeatured() + "."
+        );
+        return toFeedbackResponse(updatedMessage);
     }
 
     private AdminBrandResponse toBrandResponse(BrandEntity brand) {

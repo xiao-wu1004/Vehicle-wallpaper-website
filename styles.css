@@ -266,6 +266,24 @@ nav ul li .dropdown a.active {
     font-weight: 500;
 }
 
+.catalog-status {
+    margin: 0 24px 24px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--text-main);
+    box-shadow: var(--shadow-card);
+}
+
+.catalog-status.is-loading {
+    color: #334155;
+}
+
+.catalog-status.is-error {
+    background: rgba(255, 245, 245, 0.96);
+    color: #b42318;
+}
+
 .brand-chip-list {
     display: flex;
     flex-wrap: wrap;
@@ -361,6 +379,12 @@ section[id],
     padding: 0 24px;
     font-size: 1.2rem;
     color: var(--text-main);
+}
+
+.brand-gallery-empty {
+    margin: 0;
+    padding: 0 24px;
+    color: var(--text-subtle);
 }
 
 .image-grid {

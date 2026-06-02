@@ -13,9 +13,15 @@ public class AdminSecurityProperties {
 
     private String loginPassword = "";
 
+    private String loginDisplayName = "Platform Admin";
+
     private String tokenSecret = "";
 
     private long tokenTtlHours = 12;
+
+    private int maxFailedAttempts = 5;
+
+    private long lockMinutes = 15;
 
     public String getHeaderName() {
         return headerName;
@@ -49,6 +55,14 @@ public class AdminSecurityProperties {
         this.loginPassword = loginPassword;
     }
 
+    public String getLoginDisplayName() {
+        return loginDisplayName;
+    }
+
+    public void setLoginDisplayName(String loginDisplayName) {
+        this.loginDisplayName = loginDisplayName;
+    }
+
     public String getTokenSecret() {
         return tokenSecret;
     }
@@ -63,5 +77,21 @@ public class AdminSecurityProperties {
 
     public void setTokenTtlHours(long tokenTtlHours) {
         this.tokenTtlHours = tokenTtlHours;
+    }
+
+    public int getMaxFailedAttempts() {
+        return maxFailedAttempts;
+    }
+
+    public void setMaxFailedAttempts(int maxFailedAttempts) {
+        this.maxFailedAttempts = maxFailedAttempts;
+    }
+
+    public long getLockMinutes() {
+        return lockMinutes;
+    }
+
+    public void setLockMinutes(long lockMinutes) {
+        this.lockMinutes = lockMinutes;
     }
 }

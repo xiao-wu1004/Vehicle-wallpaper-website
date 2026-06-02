@@ -4,10 +4,10 @@ import javax.validation.constraints.NotBlank;
 
 public class AdminAuthLoginRequest {
 
-    @NotBlank(message = "请输入管理员账号。")
+    @NotBlank(message = "Please enter the admin username.")
     private String username;
 
-    @NotBlank(message = "请输入管理员密码。")
+    @NotBlank(message = "Please enter the admin password.")
     private String password;
 
     public String getUsername() {

@@ -760,6 +760,16 @@ textarea {
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.audit-list .entity-row {
+    cursor: default;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.audit-list .entity-row:hover,
+.audit-list .entity-row:focus-visible {
+    transform: none;
+}
+
 .upload-panel input[type="file"] {
     min-height: auto;
     padding: 0.72rem 0.8rem;

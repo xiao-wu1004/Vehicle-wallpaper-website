@@ -62,6 +62,9 @@ ADMIN_API_KEY=your_strong_admin_api_key
 ADMIN_USERNAME=your_admin_username
 ADMIN_PASSWORD=your_admin_password
 ADMIN_TOKEN_SECRET=your_admin_token_secret
+ADMIN_TOKEN_TTL_HOURS=12
+ADMIN_MAX_FAILED_ATTEMPTS=5
+ADMIN_LOCK_MINUTES=15
 APP_FRONTEND_ROOT_PATH=/app/site
 APP_CATALOG_ROOT_PATH=/app/site/cars
 APP_CATALOG_SYNC_ON_STARTUP=true
@@ -72,6 +75,9 @@ Login fallback behavior:
 - If `ADMIN_USERNAME` is omitted but `ADMIN_API_KEY` exists, the login username defaults to `admin`
 - If `ADMIN_PASSWORD` is omitted but `ADMIN_API_KEY` exists, the login password defaults to the API key
 - The admin page can use either bearer-token login or the legacy API key fallback
+- Dedicated admin passwords are stored as BCrypt hashes in the database
+- `ADMIN_MAX_FAILED_ATTEMPTS` and `ADMIN_LOCK_MINUTES` control temporary lockouts for repeated failures
+- `ADMIN_TOKEN_SECRET` signs bearer-token sessions, and `Log out all sessions` invalidates all active tokens for that admin account
 
 Recommended Render settings:
 
@@ -109,7 +115,7 @@ window.VEHICLE_WALLPAPER_CONFIG = {
 
 That one file controls both:
 
-- public feedback APIs used by `main.html`
+- public catalog and feedback APIs used by `index.html`
 - admin APIs used by `admin.html`
 
 If you leave `apiBase` empty:
@@ -131,7 +137,7 @@ Check these URLs after deployment:
 
 1. `https://your-render-service.onrender.com/actuator/health`
 2. `https://your-render-service.onrender.com/api/catalog`
-3. `https://your-vercel-site.vercel.app/main.html`
+3. `https://your-vercel-site.vercel.app/`
 4. `https://your-vercel-site.vercel.app/admin.html`
 
 Admin verification steps:
@@ -140,8 +146,10 @@ Admin verification steps:
 2. Sign in with the username and password configured in Render.
 3. Or expand the fallback section and enter the same `ADMIN_API_KEY` configured in Render.
 4. Confirm dashboard metrics load.
-5. Confirm wallpaper list and feedback list load.
-6. Submit a public feedback form on the frontend and confirm it appears in admin review.
+5. Confirm the public homepage brands and wallpaper cards load from `/api/catalog`.
+6. Confirm wallpaper list, feedback list, and operation logs load.
+7. Use `Log out all sessions`, then verify the old bearer login is rejected.
+8. Submit a public feedback form on the frontend and confirm it appears in admin review.
 
 ## Daily Update Workflow
 
@@ -155,6 +163,7 @@ When you add or replace wallpaper files later:
 This keeps:
 
 - frontend static assets
+- frontend dynamic catalog rendering
 - backend-served assets
 - database metadata
 

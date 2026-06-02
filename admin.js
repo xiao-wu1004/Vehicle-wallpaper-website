@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
         brands: [],
         wallpapers: [],
         feedback: [],
+        logs: [],
         wallpaperSearch: "",
         selectedBrandId: null,
         selectedWallpaperId: null,
@@ -47,6 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
         rememberLoginCheckbox: document.getElementById("rememberLoginCheckbox"),
         loginButton: document.getElementById("loginButton"),
         logoutButton: document.getElementById("logoutButton"),
+        logoutAllSessionsButton: document.getElementById("logoutAllSessionsButton"),
         loginSupportCopy: document.getElementById("loginSupportCopy"),
         toggleLoginPasswordButton: document.getElementById("toggleLoginPasswordButton"),
         apiKeyFallback: document.getElementById("apiKeyFallback"),
@@ -119,6 +121,8 @@ document.addEventListener("DOMContentLoaded", function () {
         saveFeedbackButton: document.getElementById("saveFeedbackButton"),
         approveFeedbackButton: document.getElementById("approveFeedbackButton"),
         rejectFeedbackButton: document.getElementById("rejectFeedbackButton"),
+        operationLogSummary: document.getElementById("operationLogSummary"),
+        operationLogList: document.getElementById("operationLogList"),
         metricTotalBrands: document.getElementById("metricTotalBrands"),
         metricTotalWallpapers: document.getElementById("metricTotalWallpapers"),
         metricActiveWallpapers: document.getElementById("metricActiveWallpapers"),
@@ -307,6 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
         state.brands = [];
         state.wallpapers = [];
         state.feedback = [];
+        state.logs = [];
         state.selectedBrandId = null;
         state.selectedWallpaperId = null;
         state.selectedFeedbackId = null;
@@ -320,6 +325,14 @@ document.addEventListener("DOMContentLoaded", function () {
         renderWallpaperEditor();
         renderFeedbackList();
         renderFeedbackEditor();
+        renderOperationLogs();
+        syncSessionControls();
+    }
+
+    function syncSessionControls() {
+        const hasPasswordSession = state.connected && state.authMode === "PASSWORD" && Boolean(state.accessToken);
+        elements.logoutAllSessionsButton.hidden = !state.connected || !state.accessToken;
+        elements.logoutAllSessionsButton.disabled = !hasPasswordSession;
     }
 
     async function loadAuthOptions() {
@@ -464,8 +477,13 @@ document.addEventListener("DOMContentLoaded", function () {
         renderFeedbackEditor();
     }
 
+    async function loadOperationLogs() {
+        state.logs = await fetchAdmin("/api/admin/logs?limit=40");
+        renderOperationLogs();
+    }
+
     async function loadAllData() {
-        await Promise.all([loadDashboard(), loadBrands(), loadWallpapers(), loadFeedback()]);
+        await Promise.all([loadDashboard(), loadBrands(), loadWallpapers(), loadFeedback(), loadOperationLogs()]);
     }
 
     async function requestAdminLogin(username, password) {
@@ -514,6 +532,8 @@ document.addEventListener("DOMContentLoaded", function () {
             renderWallpaperEditor();
             renderFeedbackList();
             renderFeedbackEditor();
+            renderOperationLogs();
+            syncSessionControls();
             setConnectionStatus("Logged in", "connected");
             setNotice("Signed in successfully. Dashboard, catalog, and feedback data are now in sync.", "success");
         } catch (error) {
@@ -545,6 +565,8 @@ document.addEventListener("DOMContentLoaded", function () {
             renderWallpaperEditor();
             renderFeedbackList();
             renderFeedbackEditor();
+            renderOperationLogs();
+            syncSessionControls();
             setConnectionStatus("API key mode", "connected");
             setNotice("Admin console connected. Dashboard, catalog, and feedback data are now in sync.", "success");
         } catch (error) {
@@ -563,6 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
         state.authMode = "";
         state.adminUsername = "";
         clearDataViews();
+        syncSessionControls();
         setConnectionStatus("Disconnected", "idle");
         setNotice("Admin connection cleared.", "info");
 
@@ -980,6 +1003,39 @@ document.addEventListener("DOMContentLoaded", function () {
             "Submitted: " + formatDateTime(item.createdAt) + " / User-Agent: " + (item.userAgent || "unknown");
     }
 
+    function renderOperationLogs() {
+        elements.operationLogList.innerHTML = "";
+        elements.operationLogSummary.textContent = state.connected
+            ? state.logs.length + " recent security and content actions"
+            : "Connect to load operation history";
+
+        if (!state.connected) {
+            elements.operationLogList.innerHTML = '<div class="entity-empty">Connect to the admin APIs to inspect operation history.</div>';
+            return;
+        }
+
+        if (!state.logs.length) {
+            elements.operationLogList.innerHTML = '<div class="entity-empty">No admin operations have been recorded yet.</div>';
+            return;
+        }
+
+        state.logs.forEach(function (log) {
+            const button = document.createElement("article");
+            button.className = "entity-row";
+            button.innerHTML =
+                '<div class="entity-body">' +
+                '<div class="entity-title">' + escapeHtml(displayText(log.action, "UNKNOWN_ACTION")) + " / " + escapeHtml(displayText(log.actorUsername, "unknown")) + '</div>' +
+                '<div class="entity-subtitle">' + escapeHtml(displayText(log.targetType, "target")) + (log.targetId ? " #" + escapeHtml(log.targetId) : "") + " / " + escapeHtml(displayText(log.requestPath, "unknown")) + '</div>' +
+                '<div class="feedback-message">' + escapeHtml(displayText(log.detail, "No detail captured.")) + '</div>' +
+                '<div class="entity-meta">' + escapeHtml(displayText(log.ipAddress, "unknown")) + " / " + escapeHtml(formatDateTime(log.createdAt)) + '</div>' +
+                '</div>' +
+                '<div class="entity-side">' +
+                '<span class="badge">' + escapeHtml(displayText(log.authMode, "SYSTEM")) + '</span>' +
+                '</div>';
+            elements.operationLogList.appendChild(button);
+        });
+    }
+
     function feedbackStatusClass(status) {
         if (status === "APPROVED") {
             return "is-approved";
@@ -1050,6 +1106,32 @@ document.addEventListener("DOMContentLoaded", function () {
         disconnect(true);
     }
 
+    async function handleLogoutAllSessions() {
+        if (!state.connected || state.authMode !== "PASSWORD" || !state.accessToken) {
+            setNotice("Sign in with an admin username and password before revoking all sessions.", "error");
+            return;
+        }
+
+        const confirmed = window.confirm("End every active admin session, including this one, and force a fresh sign-in on all devices?");
+        if (!confirmed) {
+            return;
+        }
+
+        elements.logoutAllSessionsButton.disabled = true;
+        setNotice("Revoking all admin sessions.", "info");
+
+        try {
+            const result = await fetchAdmin("/api/admin/auth/logout-all", { method: "POST" });
+            clearRememberedToken();
+            disconnect(true);
+            setNotice(result.message || "All admin sessions have been revoked.", "success");
+        } catch (error) {
+            setNotice(error.message || "Failed to revoke admin sessions.", "error");
+        } finally {
+            syncSessionControls();
+        }
+    }
+
     function handleClearKey() {
         localStorage.removeItem(savedKeyStorageName);
         elements.rememberKeyCheckbox.checked = false;
@@ -1088,7 +1170,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             state.dashboard = await fetchAdmin("/api/admin/catalog/refresh", { method: "POST" });
             renderDashboard();
-            await Promise.all([loadBrands(), loadWallpapers()]);
+            await Promise.all([loadBrands(), loadWallpapers(), loadOperationLogs()]);
             setNotice("Catalog sync completed and wallpaper data has been reloaded.", "success");
         } catch (error) {
             setNotice(error.message || "Catalog sync failed.", "error");
@@ -1123,7 +1205,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 body: JSON.stringify(payload)
             });
             state.selectedBrandId = updatedBrand.id;
-            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard()]);
+            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard(), loadOperationLogs()]);
             elements.wallpaperUploadBrandSelect.value = String(updatedBrand.id);
             renderBrandList();
             renderBrandEditor();
@@ -1168,7 +1250,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (elements.wallpaperBrandFilter.value === brand.slug) {
                 elements.wallpaperBrandFilter.value = "";
             }
-            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard()]);
+            await Promise.all([loadBrands(), loadWallpapers(), loadDashboard(), loadOperationLogs()]);
             renderBrandList();
             renderBrandEditor();
             renderWallpaperUploadForm();
@@ -1237,7 +1319,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             elements.wallpaperBrandFilter.value = uploadedWallpaper.brandSlug;
             resetWallpaperUploadFields();
-            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands()]);
+            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands(), loadOperationLogs()]);
             state.selectedWallpaperId = uploadedWallpaper.id;
             renderWallpaperList();
             renderWallpaperEditor();
@@ -1269,7 +1351,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             await fetchAdmin("/api/admin/wallpapers/" + wallpaper.id, { method: "DELETE" });
             state.selectedWallpaperId = null;
-            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands()]);
+            await Promise.all([loadWallpapers(), loadDashboard(), loadBrands(), loadOperationLogs()]);
             renderWallpaperList();
             renderWallpaperEditor();
             renderBrandList();
@@ -1307,7 +1389,7 @@ document.addEventListener("DOMContentLoaded", function () {
             replaceWallpaper(updated);
             renderWallpaperList();
             renderWallpaperEditor();
-            await loadDashboard();
+            await Promise.all([loadDashboard(), loadOperationLogs()]);
             setNotice("Wallpaper changes saved.", "success");
         } catch (error) {
             setNotice(error.message || "Failed to save wallpaper changes.", "error");
@@ -1348,7 +1430,7 @@ document.addEventListener("DOMContentLoaded", function () {
             replaceFeedback(updated);
             renderFeedbackList();
             renderFeedbackEditor();
-            await loadDashboard();
+            await Promise.all([loadDashboard(), loadOperationLogs()]);
             setNotice(successMessage, "success");
         } catch (error) {
             setNotice(error.message || "Failed to save feedback review.", "error");
@@ -1380,6 +1462,7 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.loginForm.addEventListener("submit", handleLoginSubmit);
         elements.authForm.addEventListener("submit", handleConnectSubmit);
         elements.logoutButton.addEventListener("click", handleLogout);
+        elements.logoutAllSessionsButton.addEventListener("click", handleLogoutAllSessions);
         elements.clearKeyButton.addEventListener("click", handleClearKey);
         elements.refreshAllButton.addEventListener("click", handleRefreshAll);
         elements.refreshCatalogButton.addEventListener("click", handleRefreshCatalog);
@@ -1505,6 +1588,8 @@ document.addEventListener("DOMContentLoaded", function () {
             renderWallpaperEditor();
             renderFeedbackList();
             renderFeedbackEditor();
+            renderOperationLogs();
+            syncSessionControls();
             return;
         }
 
@@ -1519,5 +1604,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     bindEvents();
+    syncSessionControls();
     bootstrapSavedAuth();
 });

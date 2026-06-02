@@ -17,16 +17,21 @@ Java backend for the vehicle wallpaper website. The project is ready to open dir
 - Serves the existing frontend files from the repository root
 - Serves wallpaper assets under `cars/`
 - Exposes wallpaper catalog APIs
+- Drives the public gallery from `/api/catalog` instead of hard-coded HTML blocks
 - Stores feedback messages in the database
 - Syncs wallpaper metadata from the filesystem into database tables on startup
+- Protects the admin console with database-backed accounts, hashed passwords, session tokens, login throttling, and operation logs
 
 ## Database Design
 
-Current core tables are created by Flyway migration `V1__create_core_tables.sql`.
+Current core tables are created by Flyway migrations `V1__create_core_tables.sql` and `V2__add_admin_security_tables.sql`.
 
 - `brands`: brand metadata
 - `wallpapers`: wallpaper metadata and file URLs
 - `feedback_messages`: feedback form submissions
+- `admin_accounts`: administrator records, password hashes, and login-throttle state
+- `admin_sessions`: issued bearer-token sessions
+- `admin_operation_logs`: admin audit trail for content and moderation actions
 
 The backend keeps `cars/` as the source of truth for image files, then writes brand and wallpaper metadata into the database during startup.
 
@@ -171,12 +176,19 @@ These endpoints power the live admin console.
 
 - `GET /api/admin/dashboard`
 - `POST /api/admin/catalog/refresh`
+- `GET /api/admin/logs`
+- `POST /api/admin/brands`
+- `PATCH /api/admin/brands/{brandId}`
+- `DELETE /api/admin/brands/{brandId}`
 - `GET /api/admin/wallpapers`
+- `POST /api/admin/wallpapers`
 - `PATCH /api/admin/wallpapers/{wallpaperId}`
+- `DELETE /api/admin/wallpapers/{wallpaperId}`
 - `GET /api/admin/feedback`
 - `PATCH /api/admin/feedback/{feedbackId}`
 - `GET /api/admin/auth/options`
 - `POST /api/admin/auth/login`
+- `POST /api/admin/auth/logout-all`
 
 Authentication options:
 
@@ -188,6 +200,9 @@ Authentication options:
 - Configure a dedicated login with `ADMIN_USERNAME` and `ADMIN_PASSWORD`
 - Optionally configure token signing with `ADMIN_TOKEN_SECRET`
 - Token lifetime defaults to `12` hours and can be changed with `ADMIN_TOKEN_TTL_HOURS`
+- Passwords are stored as BCrypt hashes in `admin_accounts`
+- Failed logins are counted per admin account and temporary lockouts default to `5` attempts and `15` minutes
+- `POST /api/admin/auth/logout-all` revokes every active bearer session for the current admin account
 
 Fallback behavior:
 
@@ -202,7 +217,8 @@ Fallback behavior:
 - Sign in with the configured admin username and password
 - Or expand the fallback section and enter `ADMIN_API_KEY`
 - The page can remember the bearer token or fallback key locally in the browser
-- The page talks directly to the protected `/api/admin/**` endpoints for dashboard stats, catalog refresh, wallpaper edits, and feedback moderation
+- The page talks directly to the protected `/api/admin/**` endpoints for dashboard stats, catalog refresh, brand CRUD, wallpaper upload and deletion, feedback moderation, and audit-log review
+- The auth panel also supports `Log out all sessions`, which invalidates every active bearer token for the current admin account
 
 ## Cloud Deployment
 
@@ -216,13 +232,14 @@ Recommended daily workflow:
 
 1. Start MySQL service.
 2. Start the backend with the `mysql` profile.
-3. Open the public site at [http://localhost:8080/main.html](http://localhost:8080/main.html).
+3. Open the public site at [http://localhost:8080/](http://localhost:8080/) or [http://localhost:8080/index.html](http://localhost:8080/index.html).
 4. Open the admin console at [http://localhost:8080/admin](http://localhost:8080/admin).
 5. Sign in with the username and password you configured for the admin console, or use the fallback API key section.
 
 What each part is for:
 
-- `main.html`: public wallpaper site
+- `/` and `index.html`: public wallpaper site
+- `main.html`: compatibility redirect to the public homepage
 - `/api/catalog/**`: public wallpaper data APIs
 - `/api/feedback`: public feedback submission API
 - `/admin`: admin management page
@@ -233,13 +250,16 @@ Typical admin actions:
 
 1. Sign in on the admin page, or use the fallback API key section if needed.
 2. Check dashboard stats to confirm catalog and feedback counts.
-3. Use `Run catalog sync` after you add, remove, or rename images under `cars/`.
-4. Use `Wallpaper management` to update wallpaper title, sort order, and active state.
+3. Use `Brands` to create, rename, or remove brand records.
+4. Use `Wallpaper management` to upload wallpapers, update titles and sort order, or delete obsolete entries.
 5. Use `Feedback review` to approve, reject, or feature user feedback.
+6. Use `Run catalog sync` after you add, remove, or rename image files under `cars/`.
+7. Use `Operation log` to review who changed content or moderation state.
 
 How data flows:
 
 - Image files remain in `cars/`
 - The backend scans those folders and syncs metadata into MySQL
+- The public homepage now renders its brand navigation, carousel, and gallery sections from `/api/catalog`
 - Public pages and admin pages both read data from backend APIs
 - Feedback submitted from the frontend is stored in MySQL and then moderated in the admin page

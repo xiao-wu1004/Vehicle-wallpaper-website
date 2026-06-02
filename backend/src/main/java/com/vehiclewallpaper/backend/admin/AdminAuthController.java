@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import javax.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/admin/auth")
@@ -27,7 +28,14 @@ public class AdminAuthController {
 
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
-    public AdminAuthLoginResponse login(@Valid @RequestBody AdminAuthLoginRequest request) {
-        return adminAuthenticationService.login(request);
+    public AdminAuthLoginResponse login(@Valid @RequestBody AdminAuthLoginRequest request,
+                                        HttpServletRequest servletRequest) {
+        return adminAuthenticationService.login(request, servletRequest);
+    }
+
+    @PostMapping("/logout-all")
+    @ResponseStatus(HttpStatus.OK)
+    public AdminActionStatusResponse logoutAll(HttpServletRequest servletRequest) {
+        return adminAuthenticationService.logoutAll(servletRequest);
     }
 }

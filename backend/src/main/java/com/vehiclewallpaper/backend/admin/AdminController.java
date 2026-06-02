@@ -97,6 +97,11 @@ public class AdminController {
         return adminService.getFeedback(status, featured, limit);
     }
 
+    @GetMapping("/logs")
+    public List<AdminOperationLogResponse> logs(@RequestParam(defaultValue = "50") int limit) {
+        return adminService.getOperationLogs(limit);
+    }
+
     @PatchMapping("/feedback/{feedbackId}")
     public AdminFeedbackResponse updateFeedback(@PathVariable Long feedbackId,
                                                 @RequestBody AdminFeedbackUpdateRequest request) {

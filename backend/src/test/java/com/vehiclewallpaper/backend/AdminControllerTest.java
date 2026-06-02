@@ -2,6 +2,8 @@ package com.vehiclewallpaper.backend;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vehiclewallpaper.backend.admin.AdminAccountEntity;
+import com.vehiclewallpaper.backend.admin.AdminAccountRepository;
 import com.vehiclewallpaper.backend.catalog.BrandEntity;
 import com.vehiclewallpaper.backend.catalog.BrandRepository;
 import com.vehiclewallpaper.backend.catalog.WallpaperEntity;
@@ -15,10 +17,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.net.URLDecoder;
@@ -61,6 +64,12 @@ class AdminControllerTest {
 
     @Autowired
     private FeedbackRepository feedbackRepository;
+
+    @Autowired
+    private AdminAccountRepository adminAccountRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -242,12 +251,59 @@ class AdminControllerTest {
     }
 
     @Test
+    void shouldExposeRecentAdminOperationLogs() throws Exception {
+        String token = loginAndExtractAccessToken();
+
+        mockMvc.perform(get("/api/admin/logs")
+                .header("Authorization", "Bearer " + token)
+                .param("limit", "5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].action").exists())
+            .andExpect(jsonPath("$[0].actorUsername").exists());
+    }
+
+    @Test
+    void shouldInvalidateBearerTokenAfterLogoutAll() throws Exception {
+        String token = loginAndExtractAccessToken();
+
+        mockMvc.perform(post("/api/admin/auth/logout-all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.affectedCount").isNumber());
+
+        mockMvc.perform(get("/api/admin/dashboard")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("管理员登录凭证无效或已过期。"));
+    }
+
+    @Test
     void shouldRejectInvalidAdminLogin() throws Exception {
         mockMvc.perform(post("/api/admin/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"test-admin\",\"password\":\"wrong-password\"}"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("管理员账号或密码错误。"));
+    }
+
+    @Test
+    void shouldLockAdminAccountAfterRepeatedFailures() throws Exception {
+        adminAccountRepository.findByUsernameIgnoreCase("locked-admin").ifPresent(adminAccountRepository::delete);
+
+        AdminAccountEntity lockedAccount = new AdminAccountEntity();
+        lockedAccount.setUsername("locked-admin");
+        lockedAccount.setDisplayName("Locked Admin");
+        lockedAccount.setActive(true);
+        lockedAccount.setPasswordHash(passwordEncoder.encode("locked-password"));
+        lockedAccount.setSessionVersion(1L);
+        lockedAccount.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(10));
+        adminAccountRepository.save(lockedAccount);
+
+        mockMvc.perform(post("/api/admin/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"locked-admin\",\"password\":\"locked-password\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("管理员账号已临时锁定，请稍后再试。"));
     }
 
     private String loginAndExtractAccessToken() throws Exception {

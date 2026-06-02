@@ -40,6 +40,7 @@
                 <a href="#overview">Overview</a>
                 <a href="#catalog">Catalog</a>
                 <a href="#feedback">Feedback</a>
+                <a href="#audit">Audit</a>
             </nav>
 
             <section class="sidebar-panel" aria-labelledby="authPanelTitle">
@@ -78,6 +79,7 @@
                     <div class="button-row">
                         <button type="submit" class="primary-button" id="loginButton">Sign in</button>
                         <button type="button" class="secondary-button" id="logoutButton">Log out</button>
+                        <button type="button" class="secondary-button" id="logoutAllSessionsButton" hidden>End all sessions</button>
                     </div>
 
                     <p class="support-copy" id="loginSupportCopy">Sign in with username and password for the normal
@@ -491,11 +493,31 @@
                     </section>
                 </div>
             </section>
+
+            <section class="workspace-panel" id="audit" aria-labelledby="auditTitle">
+                <div class="workspace-header">
+                    <div>
+                        <p class="eyebrow">Security</p>
+                        <h2 id="auditTitle">Operation log</h2>
+                        <p>Review recent admin logins, catalog edits, moderation actions, and session invalidation events.</p>
+                    </div>
+                </div>
+
+                <div class="surface-panel">
+                    <div class="surface-header">
+                        <div>
+                            <h3>Recent activity</h3>
+                            <p id="operationLogSummary">Connect to load operation history</p>
+                        </div>
+                    </div>
+                    <div class="entity-list audit-list" id="operationLogList" aria-live="polite"></div>
+                </div>
+            </section>
         </main>
     </div>
 
-    <script src="api-config.js?v=20260602-1"></script>
-    <script src="admin.js?v=20260602-1" defer></script>
+    <script src="api-config.js?v=20260602-2"></script>
+    <script src="admin.js?v=20260602-2" defer></script>
 </body>
 
 </html>
