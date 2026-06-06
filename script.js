@@ -141,8 +141,8 @@
             return title;
         }
 
-        const fileNameFallback = displayText(basename(wallpaper && wallpaper.fileName), wallpaper && (wallpaper.id || "澹佺焊"));
-        return fileNameFallback || (brandName + "澹佺焊");
+        const fileNameFallback = displayText(basename(wallpaper && wallpaper.fileName), wallpaper && (wallpaper.id || "壁纸"));
+        return fileNameFallback || (brandName + "壁纸");
     }
 
     function getApiBase() {
@@ -1154,7 +1154,7 @@
         const button = document.createElement("button");
         button.className = "image-card";
         button.type = "button";
-        button.setAttribute("aria-label", "棰勮" + brandName + "澹佺焊" + (index + 1));
+        button.setAttribute("aria-label", "预览" + brandName + "壁纸" + (index + 1));
         button.dataset.full = resolveAssetUrl(wallpaper.fullUrl || wallpaper.downloadUrl || wallpaper.previewUrl);
         button.dataset.preview = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
         button.dataset.wallpaperId = normalizeValue(wallpaper.id);
@@ -1182,7 +1182,7 @@
 
         const meta = document.createElement("p");
         meta.className = "wallpaper-card-meta";
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 鏀惰棌 / " + (wallpaper.downloadCount || 0) + " 涓嬭浇";
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
 
         copy.appendChild(titleElement);
         copy.appendChild(meta);
@@ -1259,10 +1259,10 @@
         gate.className = "gallery-login-gate";
         gate.innerHTML =
             '<div class="gallery-login-gate-card">'
-            + '<p class="gallery-login-gate-icon">馃攼</p>'
-            + '<h3>鐧诲綍鍚庢煡鐪嬪叏閮ㄥ绾?/h3>'
-            + '<p>鎴戜滑鏀跺綍浜?<strong>' + brandCount + '</strong> 涓搧鐗岀殑绮鹃€夊绾革紝娉ㄥ唽鍗冲彲娴忚鍜屼笅杞姐€?/p>'
-            + '<button type="button" class="form-submit gallery-login-gate-button">鍘荤櫥褰?/ 娉ㄥ唽</button>'
+            + '<p class="gallery-login-gate-icon">🔐</p>'
+            + '<h3>登录后查看全部壁纸/h3>'
+            + '<p>我们收录了 <strong>' + brandCount + '</strong>  个品牌的精选壁纸，注册即可浏览和下载。/p>'
+            + '<button type="button" class="form-submit gallery-login-gate-button">去登录 / 注册</button>'
             + '</div>';
 
         gate.querySelector(".gallery-login-gate-button").addEventListener("click", function () {
@@ -1438,7 +1438,7 @@
         const title = document.createElement("strong");
         title.textContent = resolveWallpaperTitle("", wallpaper);
         const meta = document.createElement("span");
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 鏀惰棌 / " + (wallpaper.downloadCount || 0) + " 涓嬭浇";
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
 
         copy.appendChild(title);
         copy.appendChild(meta);
@@ -1618,7 +1618,7 @@
     }
 
     function promptLogin(message) {
-        if (window.confirm(message || "鐧诲綍鍚庡嵆鍙娇鐢ㄥ畬鏁村姛鑳斤紝鐜板湪鍘荤櫥褰曪紵")) {
+        if (window.confirm(message || "登录后即可使用完整功能，现在去登录？")) {
             const accountSection = document.getElementById("account");
             if (accountSection) {
                 accountSection.scrollIntoView({ behavior: "smooth" });
@@ -1638,7 +1638,7 @@
         }
 
         if (!authState.accessToken) {
-            promptLogin("鏀惰棌鍔熻兘闇€瑕佺櫥褰曪紝鐜板湪鍘荤櫥褰曪紵");
+            promptLogin("收藏功能需要登录，现在去登录？");
             return;
         }
 
@@ -1677,7 +1677,7 @@
         }
 
         if (!authState.accessToken) {
-            promptLogin("涓嬭浇璁板綍闇€瑕佺櫥褰曟墠鑳藉悓姝ワ紝鐜板湪鍘荤櫥褰曪紵");
+            promptLogin("下载记录需要登录才能同步，现在去登录？");
             return;
         }
 
