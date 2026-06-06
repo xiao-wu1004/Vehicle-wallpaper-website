@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+﻿document.addEventListener("DOMContentLoaded", function () {
     const body = document.body;
     const mobileMenu = document.getElementById("mobile-menu");
     const navList = document.getElementById("nav-list");
@@ -29,6 +29,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const registerDisplayNameInput = document.getElementById("registerDisplayName");
     const registerEmailInput = document.getElementById("registerEmail");
     const registerPasswordInput = document.getElementById("registerPassword");
+    const rememberLoginCheckbox = document.getElementById("rememberLoginCheckbox");
+    const rememberRegisterCheckbox = document.getElementById("rememberRegisterCheckbox");
+    const authTabButtons = Array.prototype.slice.call(document.querySelectorAll("[data-auth-tab]"));
+    const authSwitchButtons = Array.prototype.slice.call(document.querySelectorAll("[data-auth-switch]"));
+    const passwordToggleButtons = Array.prototype.slice.call(document.querySelectorAll("[data-password-target]"));
     const accountForms = document.getElementById("accountForms");
     const accountStatusCopy = document.getElementById("accountStatusCopy");
     const accountIdentity = document.getElementById("accountIdentity");
@@ -74,6 +79,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let userStoppedCarousel = false;
     let catalogStatusElement = null;
     let currentModalWallpaper = null;
+    let currentAuthMode = "login";
     const initialGalleryBrandSectionMarkup = gallerySection
         ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
             return section.outerHTML;
@@ -87,7 +93,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function looksLikeMojibake(value) {
-        return /[\u0080-\u009f脙脗芒氓盲忙莽茅猫锚毛矛铆卯茂冒帽貌贸么玫枚霉煤没眉鈧劉锟絔]/.test(value);
+        return /[\u0080-\u009fÃâ�]/.test(value);
     }
 
     function repairPotentialMojibake(value) {
@@ -135,8 +141,8 @@ document.addEventListener("DOMContentLoaded", function () {
             return title;
         }
 
-        const fileNameFallback = displayText(basename(wallpaper && wallpaper.fileName), wallpaper && (wallpaper.id || "壁纸"));
-        return fileNameFallback || (brandName + "壁纸");
+        const fileNameFallback = displayText(basename(wallpaper && wallpaper.fileName), wallpaper && (wallpaper.id || "澹佺焊"));
+        return fileNameFallback || (brandName + "澹佺焊");
     }
 
     function getApiBase() {
@@ -184,18 +190,42 @@ document.addEventListener("DOMContentLoaded", function () {
         return generatedKey;
     }
 
+    function syncRememberCheckboxes(shouldPersist) {
+        const normalizedPreference = shouldPersist !== false;
+        if (rememberLoginCheckbox) {
+            rememberLoginCheckbox.checked = normalizedPreference;
+        }
+        if (rememberRegisterCheckbox) {
+            rememberRegisterCheckbox.checked = normalizedPreference;
+        }
+    }
+
     function restoreAccessToken() {
-        authState.accessToken = normalizeValue(localStorage.getItem(savedUserTokenStorageName));
+        const localToken = normalizeValue(localStorage.getItem(savedUserTokenStorageName));
+        const sessionToken = normalizeValue(sessionStorage.getItem(savedUserTokenStorageName));
+        authState.accessToken = localToken || sessionToken;
+
+        if (localToken) {
+            syncRememberCheckboxes(true);
+        } else if (sessionToken) {
+            syncRememberCheckboxes(false);
+        }
+
         return authState.accessToken;
     }
 
-    function rememberAccessToken(token) {
+    function rememberAccessToken(token, shouldPersist) {
         authState.accessToken = normalizeValue(token);
-        if (authState.accessToken) {
-            localStorage.setItem(savedUserTokenStorageName, authState.accessToken);
+        localStorage.removeItem(savedUserTokenStorageName);
+        sessionStorage.removeItem(savedUserTokenStorageName);
+
+        if (!authState.accessToken) {
             return;
         }
-        localStorage.removeItem(savedUserTokenStorageName);
+
+        const targetStorage = shouldPersist === false ? sessionStorage : localStorage;
+        targetStorage.setItem(savedUserTokenStorageName, authState.accessToken);
+        syncRememberCheckboxes(targetStorage === localStorage);
     }
 
     function clearAccessToken() {
@@ -804,7 +834,7 @@ document.addEventListener("DOMContentLoaded", function () {
         statusElement.className = "form-status";
         statusElement.setAttribute("role", "status");
         statusElement.setAttribute("aria-live", "polite");
-        // 插入到提交按钮之前，确保可见
+        // 鎻掑叆鍒版彁浜ゆ寜閽箣鍓嶏紝纭繚鍙
         const submitButton = formElement.querySelector(".form-submit");
         if (submitButton) {
             formElement.insertBefore(statusElement, submitButton);
@@ -814,11 +844,31 @@ document.addEventListener("DOMContentLoaded", function () {
         return statusElement;
     }
 
-    function friendlyAuthError(message) {
-        if (!message) {
+    function legacyFriendlyAuthError(message) {
+        return friendlyAuthError(message, null);
+    }
+
+    function firstFieldError(fieldErrors) {
+        if (!fieldErrors || typeof fieldErrors !== "object") {
+            return "";
+        }
+
+        const keys = Object.keys(fieldErrors);
+        if (!keys.length) {
+            return "";
+        }
+
+        return normalizeValue(fieldErrors[keys[0]]);
+    }
+
+    function friendlyAuthError(message, fieldErrors) {
+        const sourceMessage = firstFieldError(fieldErrors) || normalizeValue(message);
+
+        if (!sourceMessage) {
             return "操作失败，请稍后重试。";
         }
-        const lower = message.toLowerCase();
+
+        const lower = sourceMessage.toLowerCase();
         if (lower.includes("too many") && lower.includes("registration")) {
             return "注册请求过于频繁，请 15 分钟后再试。";
         }
@@ -832,15 +882,174 @@ document.addEventListener("DOMContentLoaded", function () {
             return "邮箱或密码不正确，请检查后重试。";
         }
         if (lower.includes("already registered") || lower.includes("already exists")) {
-            return "该邮箱已被注册，请直接登录或使用其他邮箱。";
+            return "该邮箱已注册，请直接登录或更换其他邮箱。";
+        }
+        if (lower.includes("valid email address")) {
+            return "请输入有效的邮箱地址。";
+        }
+        if (lower.includes("display name is required")) {
+            return "请输入昵称。";
+        }
+        if (lower.includes("display name") && lower.includes("120")) {
+            return "昵称最多 120 个字符。";
+        }
+        if (lower.includes("email is required")) {
+            return "请输入邮箱地址。";
+        }
+        if (lower.includes("email must be 160")) {
+            return "邮箱长度不能超过 160 个字符。";
+        }
+        if (lower.includes("password is required")) {
+            return "请输入密码。";
         }
         if (lower.includes("password") && (lower.includes("8") || lower.includes("letter") || lower.includes("number"))) {
-            return "密码需要至少 8 位，同时包含字母和数字。";
+            return "密码需要至少 8 位，并同时包含字母和数字。";
         }
         if (lower.includes("visitor key is required")) {
             return "请先登录后再操作。";
         }
-        return message;
+
+        return sourceMessage;
+    }
+
+    function isValidEmailAddress(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeValue(value));
+    }
+
+    function getFriendlyAuthError(message, fieldErrors) {
+        return friendlyAuthError(message, fieldErrors);
+    }
+
+    function refreshPasswordToggleButton(button) {
+        if (!button) {
+            return;
+        }
+
+        const targetInput = document.getElementById(button.dataset.passwordTarget || "");
+        const isRevealed = Boolean(targetInput && targetInput.type === "text");
+        button.textContent = isRevealed ? "隐藏" : "显示";
+        button.setAttribute("aria-label", isRevealed ? "隐藏密码" : "显示密码");
+        button.setAttribute("aria-pressed", isRevealed ? "true" : "false");
+    }
+
+    function syncPasswordHintState(value) {
+        const normalizedValue = normalizeValue(value);
+        const hintLength = document.getElementById("hintLength");
+        const hintLetter = document.getElementById("hintLetter");
+        const hintNumber = document.getElementById("hintNumber");
+
+        toggleHint(hintLength, normalizedValue.length >= 8);
+        toggleHint(hintLetter, /[A-Za-z]/.test(normalizedValue));
+        toggleHint(hintNumber, /[0-9]/.test(normalizedValue));
+    }
+
+    function moveAuthTabFocus(direction) {
+        if (authTabButtons.length < 2) {
+            return;
+        }
+
+        const activeIndex = authTabButtons.findIndex(function (button) {
+            return button.dataset.authTab === currentAuthMode;
+        });
+        const fallbackIndex = activeIndex >= 0 ? activeIndex : 0;
+        const nextIndex = (fallbackIndex + direction + authTabButtons.length) % authTabButtons.length;
+        const nextButton = authTabButtons[nextIndex];
+        if (!nextButton) {
+            return;
+        }
+
+        switchAuthMode(nextButton.dataset.authTab, { focus: false });
+        nextButton.focus();
+    }
+
+    function setInputInvalid(input, shouldMarkInvalid) {
+        if (!input) {
+            return;
+        }
+
+        if (shouldMarkInvalid) {
+            input.setAttribute("aria-invalid", "true");
+            return;
+        }
+
+        input.removeAttribute("aria-invalid");
+    }
+
+    function applyAuthFieldErrors(fieldErrors, fieldMap) {
+        Object.keys(fieldMap).forEach(function (key) {
+            setInputInvalid(fieldMap[key], Boolean(fieldErrors && fieldErrors[key]));
+        });
+    }
+
+    function updatePasswordToggleButton(button) {
+        refreshPasswordToggleButton(button);
+    }
+
+    function resetPasswordVisibility() {
+        passwordToggleButtons.forEach(function (button) {
+            const targetInput = document.getElementById(button.dataset.passwordTarget || "");
+            if (!targetInput) {
+                return;
+            }
+
+            targetInput.type = "password";
+            refreshPasswordToggleButton(button);
+        });
+    }
+
+    function syncAuthEmails(sourceInput) {
+        const normalizedEmail = normalizeValue(sourceInput && sourceInput.value);
+        if (!normalizedEmail) {
+            return;
+        }
+
+        if (sourceInput === loginEmailInput && registerEmailInput && !normalizeValue(registerEmailInput.value)) {
+            registerEmailInput.value = normalizedEmail;
+        }
+
+        if (sourceInput === registerEmailInput && loginEmailInput && !normalizeValue(loginEmailInput.value)) {
+            loginEmailInput.value = normalizedEmail;
+        }
+    }
+
+    function switchAuthMode(mode, options) {
+        const normalizedMode = mode === "register" ? "register" : "login";
+        const config = options || {};
+        currentAuthMode = normalizedMode;
+
+        if (normalizedMode === "register") {
+            syncAuthEmails(loginEmailInput);
+        } else {
+            syncAuthEmails(registerEmailInput);
+        }
+
+        authTabButtons.forEach(function (button) {
+            const isActive = button.dataset.authTab === normalizedMode;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-selected", isActive ? "true" : "false");
+            button.tabIndex = isActive ? 0 : -1;
+        });
+
+        if (loginForm) {
+            loginForm.hidden = normalizedMode !== "login";
+        }
+        if (registerForm) {
+            registerForm.hidden = normalizedMode !== "register";
+        }
+
+        if (config.clearStatus !== false) {
+            setFormStatus(loginForm && loginForm.querySelector(".form-status"), "", "");
+            setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
+        }
+
+        if (!config.focus) {
+            return;
+        }
+
+        const firstField = normalizedMode === "register" ? registerDisplayNameInput : loginEmailInput;
+        if (firstField) {
+            firstField.focus();
+        }
     }
 
     function toggleHint(element, isMet) {
@@ -862,7 +1071,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (type === "error") {
             statusElement.classList.add("is-error");
-            // 如果错误消息在视口外，滚动到可见区域
+            // 濡傛灉閿欒娑堟伅鍦ㄨ鍙ｅ锛屾粴鍔ㄥ埌鍙鍖哄煙
             setTimeout(function () {
                 if (statusElement.getBoundingClientRect().top > window.innerHeight
                     || statusElement.getBoundingClientRect().bottom < 0) {
@@ -945,7 +1154,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const button = document.createElement("button");
         button.className = "image-card";
         button.type = "button";
-        button.setAttribute("aria-label", "预览" + brandName + "壁纸" + (index + 1));
+        button.setAttribute("aria-label", "棰勮" + brandName + "澹佺焊" + (index + 1));
         button.dataset.full = resolveAssetUrl(wallpaper.fullUrl || wallpaper.downloadUrl || wallpaper.previewUrl);
         button.dataset.preview = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
         button.dataset.wallpaperId = normalizeValue(wallpaper.id);
@@ -973,7 +1182,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const meta = document.createElement("p");
         meta.className = "wallpaper-card-meta";
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 鏀惰棌 / " + (wallpaper.downloadCount || 0) + " 涓嬭浇";
 
         copy.appendChild(titleElement);
         copy.appendChild(meta);
@@ -1040,7 +1249,7 @@ document.addEventListener("DOMContentLoaded", function () {
         clearDynamicCatalogSections();
         removeGalleryLoginGate();
 
-        // 移除已存在的登录门禁卡片（避免重复）
+        // 绉婚櫎宸插瓨鍦ㄧ殑鐧诲綍闂ㄧ鍗＄墖锛堥伩鍏嶉噸澶嶏級
         const existingGate = gallerySection.querySelector(".gallery-login-gate");
         if (existingGate) {
             existingGate.parentNode.removeChild(existingGate);
@@ -1050,10 +1259,10 @@ document.addEventListener("DOMContentLoaded", function () {
         gate.className = "gallery-login-gate";
         gate.innerHTML =
             '<div class="gallery-login-gate-card">'
-            + '<p class="gallery-login-gate-icon">🔐</p>'
-            + '<h3>登录后查看全部壁纸</h3>'
-            + '<p>我们收录了 <strong>' + brandCount + '</strong> 个品牌的精选壁纸，注册即可浏览和下载。</p>'
-            + '<button type="button" class="form-submit gallery-login-gate-button">去登录 / 注册</button>'
+            + '<p class="gallery-login-gate-icon">馃攼</p>'
+            + '<h3>鐧诲綍鍚庢煡鐪嬪叏閮ㄥ绾?/h3>'
+            + '<p>鎴戜滑鏀跺綍浜?<strong>' + brandCount + '</strong> 涓搧鐗岀殑绮鹃€夊绾革紝娉ㄥ唽鍗冲彲娴忚鍜屼笅杞姐€?/p>'
+            + '<button type="button" class="form-submit gallery-login-gate-button">鍘荤櫥褰?/ 娉ㄥ唽</button>'
             + '</div>';
 
         gate.querySelector(".gallery-login-gate-button").addEventListener("click", function () {
@@ -1061,6 +1270,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (accountSection) {
                 accountSection.scrollIntoView({ behavior: "smooth" });
             }
+            switchAuthMode("login", { focus: false });
             const loginInput = document.getElementById("loginEmail");
             if (loginInput) {
                 setTimeout(function () { loginInput.focus(); }, 500);
@@ -1228,7 +1438,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const title = document.createElement("strong");
         title.textContent = resolveWallpaperTitle("", wallpaper);
         const meta = document.createElement("span");
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 鏀惰棌 / " + (wallpaper.downloadCount || 0) + " 涓嬭浇";
 
         copy.appendChild(title);
         copy.appendChild(meta);
@@ -1384,8 +1594,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    async function handleAuthSuccess(payload) {
-        rememberAccessToken(payload.accessToken);
+    async function handleAuthSuccess(payload, shouldPersist) {
+        rememberAccessToken(payload.accessToken, shouldPersist);
         authState.currentUser = {
             displayName: displayText(payload.displayName, ""),
             email: normalizeValue(payload.email)
@@ -1393,6 +1603,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         syncAccountUi(buildAuthenticatedProfileFallback());
         restoreStaticCatalogSections();
+        resetPasswordVisibility();
 
         if (loginForm) {
             loginForm.reset();
@@ -1401,15 +1612,18 @@ document.addEventListener("DOMContentLoaded", function () {
             registerForm.reset();
         }
 
+        switchAuthMode("login", { clearStatus: false });
+
         await Promise.all([loadCatalog(), loadProfile()]);
     }
 
     function promptLogin(message) {
-        if (window.confirm(message || "登录后即可使用完整功能，现在去登录？")) {
+        if (window.confirm(message || "鐧诲綍鍚庡嵆鍙娇鐢ㄥ畬鏁村姛鑳斤紝鐜板湪鍘荤櫥褰曪紵")) {
             const accountSection = document.getElementById("account");
             if (accountSection) {
                 accountSection.scrollIntoView({ behavior: "smooth" });
             }
+            switchAuthMode("login", { focus: false });
             const loginInput = document.getElementById("loginEmail");
             if (loginInput) {
                 setTimeout(function () { loginInput.focus(); }, 500);
@@ -1424,7 +1638,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!authState.accessToken) {
-            promptLogin("收藏功能需要登录，现在去登录？");
+            promptLogin("鏀惰棌鍔熻兘闇€瑕佺櫥褰曪紝鐜板湪鍘荤櫥褰曪紵");
             return;
         }
 
@@ -1463,7 +1677,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!authState.accessToken) {
-            promptLogin("下载记录需要登录才能同步，现在去登录？");
+            promptLogin("涓嬭浇璁板綍闇€瑕佺櫥褰曟墠鑳藉悓姝ワ紝鐜板湪鍘荤櫥褰曪紵");
             return;
         }
 
@@ -1507,7 +1721,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         renderBrandNavigation(brands);
 
-        // 未登录：只显示轮播图，画廊区替换为登录引导
+        // 未登录时只显示轮播图，画廊区替换为登录引导。
         if (!authState.accessToken) {
             renderGalleryLoginGate(brands.length);
         } else {
@@ -1543,7 +1757,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     restoreStaticCatalogSections();
                 }
-                setCatalogStatus("暂时无法从后端加载最新图库，当前显示静态备用内容。", "error");
+                setCatalogStatus("暂时无法从后端加载最新图床，当前显示静态备用内容。", "error");
                 highlightCurrentNav();
                 updateBackToHomeButton();
             });
@@ -1825,15 +2039,267 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    [
+        loginEmailInput,
+        loginPasswordInput,
+        registerDisplayNameInput,
+        registerEmailInput,
+        registerPasswordInput
+    ].filter(Boolean).forEach(function (input) {
+        input.addEventListener("input", function () {
+            setInputInvalid(this, false);
+
+            if (this === loginEmailInput || this === registerEmailInput) {
+                syncAuthEmails(this);
+            }
+        });
+    });
+
+    if (rememberLoginCheckbox) {
+        rememberLoginCheckbox.addEventListener("change", function () {
+            syncRememberCheckboxes(rememberLoginCheckbox.checked);
+        });
+    }
+
+    if (rememberRegisterCheckbox) {
+        rememberRegisterCheckbox.addEventListener("change", function () {
+            syncRememberCheckboxes(rememberRegisterCheckbox.checked);
+        });
+    }
+
+    authTabButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            switchAuthMode(button.dataset.authTab, { focus: true });
+        });
+
+        button.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                event.preventDefault();
+                moveAuthTabFocus(-1);
+                return;
+            }
+
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                event.preventDefault();
+                moveAuthTabFocus(1);
+                return;
+            }
+
+            if (event.key === "Home") {
+                event.preventDefault();
+                switchAuthMode("login", { focus: false });
+                if (authTabButtons[0]) {
+                    authTabButtons[0].focus();
+                }
+                return;
+            }
+
+            if (event.key === "End") {
+                event.preventDefault();
+                switchAuthMode("register", { focus: false });
+                if (authTabButtons[authTabButtons.length - 1]) {
+                    authTabButtons[authTabButtons.length - 1].focus();
+                }
+            }
+        });
+    });
+
+    authSwitchButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            switchAuthMode(button.dataset.authSwitch, { focus: true });
+        });
+    });
+
+    passwordToggleButtons.forEach(function (button) {
+        refreshPasswordToggleButton(button);
+        button.addEventListener("click", function () {
+            const targetInput = document.getElementById(button.dataset.passwordTarget || "");
+            if (!targetInput) {
+                return;
+            }
+
+            targetInput.type = targetInput.type === "password" ? "text" : "password";
+            refreshPasswordToggleButton(button);
+            targetInput.focus();
+        });
+    });
+
+    switchAuthMode(currentAuthMode, { clearStatus: false, focus: false });
+    syncPasswordHintState(registerPasswordInput && registerPasswordInput.value);
+
+    if (loginForm) {
+        const enhancedLoginSubmitButton = loginForm.querySelector(".form-submit");
+        const enhancedLoginStatus = ensureFormStatusElement(loginForm);
+        const enhancedLoginFieldMap = {
+            email: loginEmailInput,
+            password: loginPasswordInput
+        };
+
+        loginForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            setFormStatus(enhancedLoginStatus, "", "");
+            applyAuthFieldErrors(null, enhancedLoginFieldMap);
+
+            const normalizedLoginEmail = normalizeValue(loginEmailInput && loginEmailInput.value);
+            const normalizedLoginPassword = loginPasswordInput ? loginPasswordInput.value : "";
+
+            if (!normalizedLoginEmail || !normalizedLoginPassword.trim()) {
+                setInputInvalid(loginEmailInput, !normalizedLoginEmail);
+                setInputInvalid(loginPasswordInput, !normalizedLoginPassword.trim());
+                setFormStatus(enhancedLoginStatus, "请输入邮箱和密码。", "error");
+                return;
+            }
+
+            if (!isValidEmailAddress(normalizedLoginEmail)) {
+                setInputInvalid(loginEmailInput, true);
+                setFormStatus(enhancedLoginStatus, "请输入有效的邮箱地址。", "error");
+                return;
+            }
+
+            if (normalizedLoginPassword.length < 8) {
+                setInputInvalid(loginPasswordInput, true);
+                setFormStatus(enhancedLoginStatus, "密码至少需要 8 位。", "error");
+                return;
+            }
+
+            setButtonBusy(enhancedLoginSubmitButton, true);
+            try {
+                const payload = await requestJson("/api/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: normalizedLoginEmail,
+                        password: normalizedLoginPassword
+                    })
+                });
+
+                setFormStatus(enhancedLoginStatus, "登录成功，正在同步你的收藏。", "success");
+                await handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
+            } catch (error) {
+                applyAuthFieldErrors(error.fieldErrors, enhancedLoginFieldMap);
+                if (!error.fieldErrors) {
+                    setInputInvalid(loginEmailInput, true);
+                    setInputInvalid(loginPasswordInput, true);
+                }
+                setFormStatus(enhancedLoginStatus, getFriendlyAuthError(error.message, error.fieldErrors), "error");
+            } finally {
+                setButtonBusy(enhancedLoginSubmitButton, false);
+            }
+        }, true);
+    }
+
+    if (registerForm) {
+        const enhancedRegisterSubmitButton = registerForm.querySelector(".form-submit");
+        const enhancedRegisterStatus = ensureFormStatusElement(registerForm);
+        const enhancedRegisterFieldMap = {
+            displayName: registerDisplayNameInput,
+            email: registerEmailInput,
+            password: registerPasswordInput
+        };
+
+        registerForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            setFormStatus(enhancedRegisterStatus, "", "");
+            applyAuthFieldErrors(null, enhancedRegisterFieldMap);
+
+            const registerDisplayName = normalizeValue(registerDisplayNameInput && registerDisplayNameInput.value);
+            const registerEmail = normalizeValue(registerEmailInput && registerEmailInput.value);
+            const registerPassword = registerPasswordInput ? registerPasswordInput.value : "";
+
+            if (!registerDisplayName || !registerEmail || !registerPassword.trim()) {
+                setInputInvalid(registerDisplayNameInput, !registerDisplayName);
+                setInputInvalid(registerEmailInput, !registerEmail);
+                setInputInvalid(registerPasswordInput, !registerPassword.trim());
+                setFormStatus(enhancedRegisterStatus, "请完整填写昵称、邮箱和密码。", "error");
+                return;
+            }
+
+            if (!isValidEmailAddress(registerEmail)) {
+                setInputInvalid(registerEmailInput, true);
+                setFormStatus(enhancedRegisterStatus, "请输入有效的邮箱地址。", "error");
+                return;
+            }
+
+            if (registerDisplayName.length > 120) {
+                setInputInvalid(registerDisplayNameInput, true);
+                setFormStatus(enhancedRegisterStatus, "昵称最多 120 个字符。", "error");
+                return;
+            }
+
+            if (registerPassword.length < 8 || !/[A-Za-z]/.test(registerPassword) || !/[0-9]/.test(registerPassword)) {
+                setInputInvalid(registerPasswordInput, true);
+                setFormStatus(enhancedRegisterStatus, "密码需要至少 8 位，并同时包含字母和数字。", "error");
+                return;
+            }
+
+            setButtonBusy(enhancedRegisterSubmitButton, true);
+            try {
+                const payload = await requestJson("/api/auth/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        displayName: registerDisplayName,
+                        email: registerEmail,
+                        password: registerPassword
+                    })
+                });
+
+                setFormStatus(enhancedRegisterStatus, "注册成功，正在为你创建个人中心。", "success");
+                await handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
+            } catch (error) {
+                applyAuthFieldErrors(error.fieldErrors, enhancedRegisterFieldMap);
+                if (!error.fieldErrors && /already registered|already exists/i.test(normalizeValue(error.message))) {
+                    setInputInvalid(registerEmailInput, true);
+                }
+                setFormStatus(enhancedRegisterStatus, getFriendlyAuthError(error.message, error.fieldErrors), "error");
+            } finally {
+                setButtonBusy(enhancedRegisterSubmitButton, false);
+            }
+        }, true);
+    }
+
     if (loginForm) {
         const loginSubmitButton = loginForm.querySelector(".form-submit");
         const loginStatus = ensureFormStatusElement(loginForm);
+        const loginFieldMap = {
+            email: loginEmailInput,
+            password: loginPasswordInput
+        };
 
         loginForm.addEventListener("submit", async function (event) {
             event.preventDefault();
             setFormStatus(loginStatus, "", "");
+            applyAuthFieldErrors(null, loginFieldMap);
 
-            if (!loginEmailInput.value.trim() || !loginPasswordInput.value.trim()) {
+            const normalizedLoginEmail = loginEmailInput.value.trim();
+            const normalizedLoginPassword = loginPasswordInput.value;
+
+            if (!normalizedLoginEmail || !normalizedLoginPassword.trim()) {
+                setInputInvalid(loginEmailInput, !normalizedLoginEmail);
+                setInputInvalid(loginPasswordInput, !normalizedLoginPassword.trim());
+                setFormStatus(loginStatus, "请输入邮箱和密码。", "error");
+                return;
+            }
+
+            if (!isValidEmailAddress(normalizedLoginEmail)) {
+                setInputInvalid(loginEmailInput, true);
+                setFormStatus(loginStatus, "请输入有效的邮箱地址。", "error");
+                return;
+            }
+
+            if (normalizedLoginPassword.length < 8) {
+                setInputInvalid(loginPasswordInput, true);
+                setFormStatus(loginStatus, "密码至少需要 8 位。", "error");
+                return;
+            }
+
+            if (false) {
                 setFormStatus(loginStatus, "请输入邮箱和密码。", "error");
                 return;
             }
@@ -1846,15 +2312,20 @@ document.addEventListener("DOMContentLoaded", function () {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        email: loginEmailInput.value.trim(),
-                        password: loginPasswordInput.value
+                        email: normalizedLoginEmail,
+                        password: normalizedLoginPassword
                     })
                 });
 
                 setFormStatus(loginStatus, "登录成功，正在同步你的收藏。", "success");
-                await handleAuthSuccess(payload);
+                await handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
             } catch (error) {
-                setFormStatus(loginStatus, friendlyAuthError(error.message), "error");
+                applyAuthFieldErrors(error.fieldErrors, loginFieldMap);
+                if (!error.fieldErrors) {
+                    setInputInvalid(loginEmailInput, true);
+                    setInputInvalid(loginPasswordInput, true);
+                }
+                setFormStatus(loginStatus, friendlyAuthError(error.message, error.fieldErrors), "error");
             } finally {
                 setButtonBusy(loginSubmitButton, false);
             }
@@ -1864,11 +2335,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (registerForm) {
         const registerSubmitButton = registerForm.querySelector(".form-submit");
         const registerStatus = ensureFormStatusElement(registerForm);
+        const registerFieldMap = {
+            displayName: registerDisplayNameInput,
+            email: registerEmailInput,
+            password: registerPasswordInput
+        };
         const hintLength = document.getElementById("hintLength");
         const hintLetter = document.getElementById("hintLetter");
         const hintNumber = document.getElementById("hintNumber");
 
-        // 密码强度实时提示
+        // 瀵嗙爜寮哄害瀹炴椂鎻愮ず
         if (registerPasswordInput) {
             registerPasswordInput.addEventListener("input", function () {
                 const value = this.value;
@@ -1881,16 +2357,41 @@ document.addEventListener("DOMContentLoaded", function () {
         registerForm.addEventListener("submit", async function (event) {
             event.preventDefault();
             setFormStatus(registerStatus, "", "");
+            applyAuthFieldErrors(null, registerFieldMap);
+
+            const registerDisplayName = registerDisplayNameInput.value.trim();
+            const registerEmail = registerEmailInput.value.trim();
 
             const registerPassword = registerPasswordInput.value;
 
-            if (!registerDisplayNameInput.value.trim() || !registerEmailInput.value.trim() || !registerPassword.trim()) {
+            if (!registerDisplayName || !registerEmail || !registerPassword.trim()) {
+                setInputInvalid(registerDisplayNameInput, !registerDisplayName);
+                setInputInvalid(registerEmailInput, !registerEmail);
+                setInputInvalid(registerPasswordInput, !registerPassword.trim());
+                setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
+                return;
+            }
+
+            if (!isValidEmailAddress(registerEmail)) {
+                setInputInvalid(registerEmailInput, true);
+                setFormStatus(registerStatus, "请输入有效的邮箱地址。", "error");
+                return;
+            }
+
+            if (registerDisplayName.length > 120) {
+                setInputInvalid(registerDisplayNameInput, true);
+                setFormStatus(registerStatus, "昵称最多 120 个字符。", "error");
+                return;
+            }
+
+            if (false) {
                 setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
                 return;
             }
 
             if (registerPassword.length < 8 || !/[A-Za-z]/.test(registerPassword) || !/[0-9]/.test(registerPassword)) {
-                setFormStatus(registerStatus, "密码需要至少 8 位，同时包含字母和数字。", "error");
+                setInputInvalid(registerPasswordInput, true);
+                setFormStatus(registerStatus, "密码需要至少 8 位，并同时包含字母和数字。", "error");
                 return;
             }
 
@@ -1902,16 +2403,20 @@ document.addEventListener("DOMContentLoaded", function () {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        displayName: registerDisplayNameInput.value.trim(),
-                        email: registerEmailInput.value.trim(),
-                        password: registerPasswordInput.value
+                        displayName: registerDisplayName,
+                        email: registerEmail,
+                        password: registerPassword
                     })
                 });
 
-                setFormStatus(registerStatus, "注册成功，正在为你建立个人中心。", "success");
-                await handleAuthSuccess(payload);
+                setFormStatus(registerStatus, "注册成功，正在为你创建个人中心。", "success");
+                await handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
             } catch (error) {
-                setFormStatus(registerStatus, friendlyAuthError(error.message), "error");
+                applyAuthFieldErrors(error.fieldErrors, registerFieldMap);
+                if (!error.fieldErrors && /already registered|already exists/i.test(normalizeValue(error.message))) {
+                    setInputInvalid(registerEmailInput, true);
+                }
+                setFormStatus(registerStatus, friendlyAuthError(error.message, error.fieldErrors), "error");
             } finally {
                 setButtonBusy(registerSubmitButton, false);
             }
@@ -1929,6 +2434,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Local logout should still finish even if the server call fails.
             } finally {
                 clearAccessToken();
+                resetPasswordVisibility();
+                switchAuthMode("login", { clearStatus: false, focus: false });
                 await Promise.all([loadCatalog(), loadProfile()]);
                 setButtonBusy(logoutButton, false);
             }

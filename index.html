@@ -214,6 +214,29 @@
                 <p class="account-kicker">会员系统</p>
                 <h2>登录后同步你的收藏与下载记录</h2>
                 <p id="accountStatusCopy">当前以游客身份浏览，收藏和下载记录仅保存在本机浏览器。</p>
+                <div class="account-benefits" aria-label="会员权益">
+                    <article class="account-benefit">
+                        <span class="account-benefit-icon" aria-hidden="true"><i class="fas fa-heart"></i></span>
+                        <div>
+                            <h3>同步收藏</h3>
+                            <p>喜欢的壁纸会跟着账号保存，不怕换浏览器丢记录。</p>
+                        </div>
+                    </article>
+                    <article class="account-benefit">
+                        <span class="account-benefit-icon" aria-hidden="true"><i class="fas fa-cloud-download-alt"></i></span>
+                        <div>
+                            <h3>保留下载历史</h3>
+                            <p>最近下载会自动归档，方便你回头继续挑选高清原图。</p>
+                        </div>
+                    </article>
+                    <article class="account-benefit">
+                        <span class="account-benefit-icon" aria-hidden="true"><i class="fas fa-user-shield"></i></span>
+                        <div>
+                            <h3>游客也能先看</h3>
+                            <p>公开内容可以直接浏览，账号只在你需要同步时才介入。</p>
+                        </div>
+                    </article>
+                </div>
                 <div class="account-identity" id="accountIdentity" hidden>
                     <p class="account-name" id="accountDisplayName"></p>
                     <p class="account-email" id="accountEmail"></p>
@@ -224,72 +247,140 @@
             </div>
 
             <div class="account-forms" id="accountForms">
-                <form id="loginForm" class="auth-card" novalidate>
-                    <h3>登录</h3>
-                    <div class="form-field">
-                        <label for="loginEmail">邮箱</label>
-                        <input
-                            type="email"
-                            id="loginEmail"
-                            name="loginEmail"
-                            autocomplete="email"
-                            inputmode="email"
-                            spellcheck="false"
-                            required>
+                <div class="auth-panel">
+                    <div class="auth-panel-head">
+                        <p class="auth-panel-kicker">账户访问</p>
+                        <h3>一个入口，继续你的壁纸收藏</h3>
+                        <p>公开壁纸无需账号即可浏览；登录后可跨设备同步收藏和下载记录。</p>
                     </div>
-                    <div class="form-field">
-                        <label for="loginPassword">密码</label>
-                        <input
-                            type="password"
-                            id="loginPassword"
-                            name="loginPassword"
-                            autocomplete="current-password"
-                            minlength="8"
-                            required>
-                    </div>
-                    <button type="submit" class="form-submit">登录</button>
-                </form>
 
-                <form id="registerForm" class="auth-card" novalidate>
-                    <h3>注册</h3>
-                    <div class="form-field">
-                        <label for="registerDisplayName">昵称</label>
-                        <input
-                            type="text"
-                            id="registerDisplayName"
-                            name="registerDisplayName"
-                            autocomplete="nickname"
-                            maxlength="120"
-                            required>
+                    <div class="auth-tabs" role="tablist" aria-label="登录与注册">
+                        <button
+                            type="button"
+                            class="auth-tab is-active"
+                            id="loginTabButton"
+                            data-auth-tab="login"
+                            role="tab"
+                            aria-selected="true"
+                            aria-controls="loginForm">
+                            登录
+                        </button>
+                        <button
+                            type="button"
+                            class="auth-tab"
+                            id="registerTabButton"
+                            data-auth-tab="register"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="registerForm">
+                            注册
+                        </button>
                     </div>
-                    <div class="form-field">
-                        <label for="registerEmail">邮箱</label>
-                        <input
-                            type="email"
-                            id="registerEmail"
-                            name="registerEmail"
-                            autocomplete="email"
-                            inputmode="email"
-                            spellcheck="false"
-                            required>
-                    </div>
-                    <div class="form-field">
-                        <label for="registerPassword">密码</label>
-                        <input
-                            type="password"
-                            id="registerPassword"
-                            name="registerPassword"
-                            autocomplete="new-password"
-                            minlength="8"
-                            required>
-                        <div class="password-hint" id="registerPasswordHint">
-                            <span id="hintLength">至少 8 位</span>
-                            <span id="hintLetter">含字母</span>
-                            <span id="hintNumber">含数字</span>
+
+                    <form id="loginForm" class="auth-card auth-form-panel" data-auth-panel="login" role="tabpanel" aria-labelledby="loginTabButton" novalidate>
+                        <div class="auth-card-head">
+                            <h3>欢迎回来</h3>
+                            <p>输入邮箱和密码，继续浏览全部壁纸。</p>
                         </div>
-                    </div>
-                    <button type="submit" class="form-submit">注册并登录</button>
-                </form>
+                        <div class="form-field">
+                            <label for="loginEmail">邮箱</label>
+                            <input
+                                type="email"
+                                id="loginEmail"
+                                name="loginEmail"
+                                autocomplete="email"
+                                inputmode="email"
+                                autocapitalize="none"
+                                autocorrect="off"
+                                spellcheck="false"
+                                maxlength="160"
+                                required>
+                        </div>
+                        <div class="form-field">
+                            <div class="auth-label-row">
+                                <label for="loginPassword">密码</label>
+                                <span class="auth-field-note">至少 8 位</span>
+                            </div>
+                            <div class="input-with-action">
+                                <input
+                                    type="password"
+                                    id="loginPassword"
+                                    name="loginPassword"
+                                    autocomplete="current-password"
+                                    minlength="8"
+                                    maxlength="72"
+                                    required>
+                                <button type="button" class="field-action" data-password-target="loginPassword" aria-label="显示密码" aria-pressed="false">显示</button>
+                            </div>
+                        </div>
+                        <label class="auth-checkbox" for="rememberLoginCheckbox">
+                            <input type="checkbox" id="rememberLoginCheckbox" name="rememberLogin" checked>
+                            <span>在此设备上保持登录</span>
+                        </label>
+                        <button type="submit" class="form-submit auth-submit">登录</button>
+                        <p class="auth-switch-copy">还没有账号？<button type="button" class="auth-switch-link" data-auth-switch="register">立即注册</button></p>
+                    </form>
+
+                    <form id="registerForm" class="auth-card auth-form-panel" data-auth-panel="register" role="tabpanel" aria-labelledby="registerTabButton" novalidate hidden>
+                        <div class="auth-card-head">
+                            <h3>创建账号</h3>
+                            <p>创建后会自动登录，并开始同步你的收藏记录。</p>
+                        </div>
+                        <div class="form-field">
+                            <label for="registerDisplayName">昵称</label>
+                            <input
+                                type="text"
+                                id="registerDisplayName"
+                                name="registerDisplayName"
+                                autocomplete="nickname"
+                                maxlength="120"
+                                required>
+                        </div>
+                        <div class="form-field">
+                            <label for="registerEmail">邮箱</label>
+                            <input
+                                type="email"
+                                id="registerEmail"
+                                name="registerEmail"
+                                autocomplete="email"
+                                inputmode="email"
+                                autocapitalize="none"
+                                autocorrect="off"
+                                spellcheck="false"
+                                maxlength="160"
+                                required>
+                        </div>
+                        <div class="form-field">
+                            <div class="auth-label-row">
+                                <label for="registerPassword">密码</label>
+                                <span class="auth-field-note">8-72 位</span>
+                            </div>
+                            <div class="input-with-action">
+                                <input
+                                    type="password"
+                                    id="registerPassword"
+                                    name="registerPassword"
+                                    autocomplete="new-password"
+                                    aria-describedby="registerPasswordHint"
+                                    minlength="8"
+                                    maxlength="72"
+                                    required>
+                                <button type="button" class="field-action" data-password-target="registerPassword" aria-label="显示密码" aria-pressed="false">显示</button>
+                            </div>
+                            <div class="password-hint" id="registerPasswordHint">
+                                <span id="hintLength">至少 8 位</span>
+                                <span id="hintLetter">含字母</span>
+                                <span id="hintNumber">含数字</span>
+                            </div>
+                        </div>
+                        <label class="auth-checkbox" for="rememberRegisterCheckbox">
+                            <input type="checkbox" id="rememberRegisterCheckbox" name="rememberRegister" checked>
+                            <span>创建后在此设备上保持登录</span>
+                        </label>
+                        <button type="submit" class="form-submit auth-submit">注册并登录</button>
+                        <p class="auth-switch-copy">已有账号？<button type="button" class="auth-switch-link" data-auth-switch="login">去登录</button></p>
+                    </form>
+                </div>
             </div>
         </div>
 
