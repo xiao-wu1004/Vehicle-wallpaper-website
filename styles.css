@@ -1160,6 +1160,43 @@ body.scroll-locked {
     background-color: #0056b3;
 }
 
+/* 画廊登录门禁卡片 */
+.gallery-login-gate {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px 50px;
+}
+
+.gallery-login-gate-card {
+    text-align: center;
+    max-width: 420px;
+    padding: 36px 28px;
+    border-radius: 16px;
+    background: var(--surface-bg);
+    box-shadow: var(--shadow-soft);
+}
+
+.gallery-login-gate-icon {
+    font-size: 48px;
+    margin: 0 0 12px;
+}
+
+.gallery-login-gate-card h3 {
+    margin: 0 0 8px;
+    color: var(--text-main);
+    font-size: 1.25em;
+}
+
+.gallery-login-gate-card p {
+    margin: 0 0 20px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.gallery-login-gate-button {
+    width: 100%;
+}
+
 /* 模态框底部操作栏 */
 .modal-actions {
     text-align: center;

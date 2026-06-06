@@ -938,6 +938,43 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function renderGalleryLoginGate(brandCount) {
+        if (!gallerySection) {
+            return;
+        }
+
+        clearDynamicCatalogSections();
+
+        // 移除已存在的登录门禁卡片（避免重复）
+        const existingGate = gallerySection.querySelector(".gallery-login-gate");
+        if (existingGate) {
+            existingGate.parentNode.removeChild(existingGate);
+        }
+
+        const gate = document.createElement("div");
+        gate.className = "gallery-login-gate";
+        gate.innerHTML =
+            '<div class="gallery-login-gate-card">'
+            + '<p class="gallery-login-gate-icon">🔐</p>'
+            + '<h3>登录后查看全部壁纸</h3>'
+            + '<p>我们收录了 <strong>' + brandCount + '</strong> 个品牌的精选壁纸，注册即可浏览和下载。</p>'
+            + '<button type="button" class="form-submit gallery-login-gate-button">去登录 / 注册</button>'
+            + '</div>';
+
+        gate.querySelector(".gallery-login-gate-button").addEventListener("click", function () {
+            const accountSection = document.getElementById("account");
+            if (accountSection) {
+                accountSection.scrollIntoView({ behavior: "smooth" });
+            }
+            const loginInput = document.getElementById("loginEmail");
+            if (loginInput) {
+                setTimeout(function () { loginInput.focus(); }, 500);
+            }
+        });
+
+        gallerySection.appendChild(gate);
+    }
+
     function renderBrandNavigation(brands) {
         if (brandSubmenu) {
             brandSubmenu.innerHTML = "";
@@ -1346,7 +1383,14 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         renderBrandNavigation(brands);
-        renderBrandSections(brands);
+
+        // 未登录：只显示轮播图，画廊区替换为登录引导
+        if (!authState.accessToken) {
+            renderGalleryLoginGate(brands.length);
+        } else {
+            renderBrandSections(brands);
+        }
+
         renderCarousel(brands);
         setCatalogStatus("", "");
         highlightCurrentNav();
