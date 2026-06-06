@@ -42,6 +42,12 @@ public class UserAccountEntity {
     @Column(name = "last_login_user_agent", length = 512)
     private String lastLoginUserAgent;
 
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -132,6 +138,22 @@ public class UserAccountEntity {
 
     public void setLastLoginUserAgent(String lastLoginUserAgent) {
         this.lastLoginUserAgent = lastLoginUserAgent;
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 
     public LocalDateTime getCreatedAt() {

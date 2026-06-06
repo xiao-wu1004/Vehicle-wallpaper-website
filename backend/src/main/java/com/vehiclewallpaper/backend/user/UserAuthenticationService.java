@@ -17,29 +17,49 @@ import java.util.Locale;
 @Service
 public class UserAuthenticationService {
 
+    private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
+    private static final int ACCOUNT_LOCK_MINUTES = 30;
+
     private final UserAuthProperties userAuthProperties;
     private final UserAccountRepository userAccountRepository;
     private final UserSessionRepository userSessionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthRateLimiter rateLimiter;
     private final Base64.Encoder base64UrlEncoder = Base64.getUrlEncoder().withoutPadding();
     private final SecureRandom secureRandom = new SecureRandom();
 
     public UserAuthenticationService(UserAuthProperties userAuthProperties,
                                      UserAccountRepository userAccountRepository,
                                      UserSessionRepository userSessionRepository,
-                                     PasswordEncoder passwordEncoder) {
+                                     PasswordEncoder passwordEncoder,
+                                     AuthRateLimiter rateLimiter) {
         this.userAuthProperties = userAuthProperties;
         this.userAccountRepository = userAccountRepository;
         this.userSessionRepository = userSessionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.rateLimiter = rateLimiter;
     }
 
     @Transactional
     public UserAuthSessionResponse register(UserAuthRegisterRequest request, HttpServletRequest servletRequest) {
+        String clientIp = extractClientIp(servletRequest);
         String email = normalizeEmail(request.getEmail());
+        String rawPassword = normalize(request.getPassword());
+
         if (email.isEmpty()) {
             throw new IllegalArgumentException("Email is required.");
         }
+
+        // IP 限流：每个 IP 每 15 分钟最多注册 3 次
+        if (!rateLimiter.allowRegistration(clientIp)) {
+            throw new IllegalArgumentException("Too many registration attempts. Please try again later.");
+        }
+
+        // 密码强度：≥8位 + 至少含字母和数字
+        if (rawPassword.length() < 8 || !rawPassword.matches(".*[A-Za-z].*") || !rawPassword.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("Password must be at least 8 characters and contain both letters and numbers.");
+        }
+
         if (userAccountRepository.findByEmailIgnoreCase(email).isPresent()) {
             throw new IllegalArgumentException("This email is already registered.");
         }
@@ -58,16 +78,38 @@ public class UserAuthenticationService {
 
     @Transactional
     public UserAuthSessionResponse login(UserAuthLoginRequest request, HttpServletRequest servletRequest) {
+        String clientIp = extractClientIp(servletRequest);
         String email = normalizeEmail(request.getEmail());
         String password = normalize(request.getPassword());
 
-        UserAccountEntity account = userAccountRepository.findByEmailIgnoreCase(email)
-            .orElseThrow(() -> new UserUnauthorizedException("Incorrect email or password."));
+        // IP 限流：每个 IP 每 15 分钟最多 5 次登录尝试
+        if (!rateLimiter.allowLogin(clientIp)) {
+            int remaining = rateLimiter.remainingLoginAttempts(clientIp);
+            throw new UserUnauthorizedException("Too many login attempts. Please wait 15 minutes. (" + remaining + " remaining)");
+        }
 
-        if (!account.isActive() || !passwordEncoder.matches(password, account.getPasswordHash())) {
+        UserAccountEntity account = userAccountRepository.findByEmailIgnoreCase(email).orElse(null);
+
+        // 账号锁定检查
+        if (account != null && account.getLockedUntil() != null && account.getLockedUntil().isAfter(LocalDateTime.now())) {
+            throw new UserUnauthorizedException("This account is temporarily locked due to repeated failed login attempts. Please try again later or contact the administrator.");
+        }
+
+        // 登录失败
+        if (account == null || !account.isActive() || !passwordEncoder.matches(password, account.getPasswordHash())) {
+            if (account != null) {
+                account.setFailedLoginAttempts(account.getFailedLoginAttempts() + 1);
+                if (account.getFailedLoginAttempts() >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                    account.setLockedUntil(LocalDateTime.now().plusMinutes(ACCOUNT_LOCK_MINUTES));
+                }
+                userAccountRepository.save(account);
+            }
             throw new UserUnauthorizedException("Incorrect email or password.");
         }
 
+        // 登录成功：重置失败计数 + 解除锁定
+        account.setFailedLoginAttempts(0);
+        account.setLockedUntil(null);
         applyLoginMetadata(account, servletRequest);
         userAccountRepository.save(account);
         return issueSession(account, servletRequest);
