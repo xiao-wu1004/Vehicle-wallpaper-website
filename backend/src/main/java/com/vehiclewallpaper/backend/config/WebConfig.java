@@ -31,6 +31,11 @@ public class WebConfig implements WebMvcConfigurer {
             .allowedOriginPatterns("*")
             .allowedMethods("GET", "POST", "PATCH", "DELETE", "OPTIONS")
             .allowedHeaders("*");
+
+        registry.addMapping("/cars/**")
+            .allowedOriginPatterns("*")
+            .allowedMethods("GET", "OPTIONS")
+            .allowedHeaders("*");
     }
 
     @Override

@@ -681,9 +681,13 @@
         modalHires.src = "";
 
         modalPlaceholder.src = previewSrc;
-        // 下载链接：原图直链，浏览器触发下载
-        downloadBtn.href = fullSrc;
-        const downloadFileName = decodeURIComponent(fullSrc.split("/").pop() || "wallpaper");
+        // 下载链接：原图绝对路径，Blob 下载用
+        var absoluteFullSrc = fullSrc;
+        if (absoluteFullSrc.indexOf("/") !== 0 && absoluteFullSrc.indexOf("http") !== 0) {
+            absoluteFullSrc = "/" + absoluteFullSrc;
+        }
+        downloadBtn.href = absoluteFullSrc;
+        const downloadFileName = decodeURIComponent((fullSrc.split("/").pop() || "wallpaper"));
         downloadBtn.setAttribute("download", downloadFileName);
         downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
         downloadBtn.style.display = "inline-flex";
@@ -1055,8 +1059,13 @@
     }
 
     function triggerFileDownload(url, fileName) {
+        // 确保绝对路径
+        var fetchUrl = url;
+        if (fetchUrl.indexOf("/") !== 0 && fetchUrl.indexOf("http") !== 0) {
+            fetchUrl = "/" + fetchUrl;
+        }
         // Blob 方式：先 fetch 图片再触发下载，浏览器不会打开预览
-        fetch(url)
+        fetch(fetchUrl)
             .then(function (response) {
                 if (!response.ok) throw new Error("Download failed");
                 return response.blob();
@@ -1075,7 +1084,7 @@
             .catch(function () {
                 // Blob 方式失败时降级为直接链接
                 var anchor = document.createElement("a");
-                anchor.href = url;
+                anchor.href = fetchUrl;
                 anchor.download = fileName;
                 anchor.target = "_blank";
                 anchor.rel = "noopener";
@@ -1941,12 +1950,11 @@
 
         downloadBtn.addEventListener("click", function (event) {
             event.preventDefault();
-            var href = downloadBtn.getAttribute("href");
+            var href = downloadBtn.href;  // 取已解析的绝对路径
             var fileName = downloadBtn.getAttribute("download") || "wallpaper.jpg";
             if (!href || href === "#") {
                 return;
             }
-            // 先触发下载，异步记录
             triggerFileDownload(href, fileName);
             recordDownload(downloadBtn.dataset.wallpaperId);
         });
