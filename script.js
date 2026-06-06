@@ -681,12 +681,14 @@
         modalHires.src = "";
 
         modalPlaceholder.src = previewSrc;
-        // 下载链接：原图绝对路径，Blob 下载用
-        var absoluteFullSrc = fullSrc;
-        if (absoluteFullSrc.indexOf("/") !== 0 && absoluteFullSrc.indexOf("http") !== 0) {
-            absoluteFullSrc = "/" + absoluteFullSrc;
+        // 下载链接：走 /download 端点，强制 Content-Disposition: attachment
+        var downloadUrl = fullSrc;
+        if (downloadUrl.indexOf("/cars/") === 0) {
+            downloadUrl = "/download" + downloadUrl.substring(5);
+        } else if (downloadUrl.indexOf("cars/") === 0) {
+            downloadUrl = "/download/" + downloadUrl.substring(5);
         }
-        downloadBtn.href = absoluteFullSrc;
+        downloadBtn.href = downloadUrl;
         const downloadFileName = decodeURIComponent((fullSrc.split("/").pop() || "wallpaper"));
         downloadBtn.setAttribute("download", downloadFileName);
         downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
@@ -1059,8 +1061,7 @@
     }
 
     function triggerFileDownload(url, fileName) {
-        // 直接使用原始 URL + download 属性，浏览器根据设置决定：弹对话框或直接下载到默认目录
-        // Blob 方式反而会强制弹出"另存为"，不满足"直接下载到本地"需求
+        // /download 端点已带 Content-Disposition: attachment，浏览器直接下载
         var anchor = document.createElement("a");
         anchor.href = url;
         anchor.download = fileName;
