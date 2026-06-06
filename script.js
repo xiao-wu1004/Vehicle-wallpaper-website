@@ -74,6 +74,13 @@ document.addEventListener("DOMContentLoaded", function () {
     let userStoppedCarousel = false;
     let catalogStatusElement = null;
     let currentModalWallpaper = null;
+    const initialGalleryBrandSectionMarkup = gallerySection
+        ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
+            return section.outerHTML;
+        })
+        : [];
+    const initialGalleryBrandCount = initialGalleryBrandSectionMarkup.length;
+    let lastCatalogRenderMode = initialGalleryBrandCount ? "static" : "";
 
     function normalizeValue(value) {
         return value == null ? "" : String(value).trim();
@@ -995,12 +1002,43 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function removeGalleryLoginGate() {
+        if (!gallerySection) {
+            return;
+        }
+
+        const existingGate = gallerySection.querySelector(".gallery-login-gate");
+        if (existingGate) {
+            existingGate.parentNode.removeChild(existingGate);
+        }
+    }
+
+    function restoreStaticCatalogSections() {
+        if (!gallerySection || !initialGalleryBrandSectionMarkup.length) {
+            return;
+        }
+
+        clearDynamicCatalogSections();
+        removeGalleryLoginGate();
+
+        initialGalleryBrandSectionMarkup.forEach(function (markup) {
+            const template = document.createElement("template");
+            template.innerHTML = markup;
+            if (template.content.firstElementChild) {
+                gallerySection.appendChild(template.content.firstElementChild);
+            }
+        });
+
+        lastCatalogRenderMode = "static";
+    }
+
     function renderGalleryLoginGate(brandCount) {
         if (!gallerySection) {
             return;
         }
 
         clearDynamicCatalogSections();
+        removeGalleryLoginGate();
 
         // 移除已存在的登录门禁卡片（避免重复）
         const existingGate = gallerySection.querySelector(".gallery-login-gate");
@@ -1030,6 +1068,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         gallerySection.appendChild(gate);
+        lastCatalogRenderMode = "gate";
     }
 
     function renderBrandNavigation(brands) {
@@ -1057,6 +1096,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         clearDynamicCatalogSections();
+        removeGalleryLoginGate();
 
         brands.forEach(function (brand) {
             const brandName = resolveBrandName(brand);
@@ -1085,6 +1125,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             gallerySection.appendChild(section);
         });
+
+        lastCatalogRenderMode = "catalog";
     }
 
     function buildCarouselCandidates(brands) {
@@ -1280,6 +1322,19 @@ document.addEventListener("DOMContentLoaded", function () {
         );
     }
 
+    function buildAuthenticatedProfileFallback() {
+        const previousProfile = authState.profile && authState.profile.authenticated ? authState.profile : null;
+        return {
+            authenticated: true,
+            displayName: displayText(authState.currentUser && authState.currentUser.displayName, "已登录用户"),
+            email: normalizeValue(authState.currentUser && authState.currentUser.email),
+            favoriteCount: previousProfile ? previousProfile.favoriteCount || 0 : 0,
+            downloadCount: previousProfile ? previousProfile.downloadCount || 0 : 0,
+            favorites: previousProfile && Array.isArray(previousProfile.favorites) ? previousProfile.favorites : [],
+            recentDownloads: previousProfile && Array.isArray(previousProfile.recentDownloads) ? previousProfile.recentDownloads : []
+        };
+    }
+
     async function syncAuthStatus() {
         restoreAccessToken();
 
@@ -1313,6 +1368,14 @@ document.addEventListener("DOMContentLoaded", function () {
             const profile = await requestJson("/api/catalog/me");
             syncAccountUi(profile);
         } catch (error) {
+            if (authState.accessToken && authState.currentUser) {
+                syncAccountUi(buildAuthenticatedProfileFallback());
+                if (accountStatusCopy) {
+                    accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
+                }
+                return;
+            }
+
             if (accountStatusCopy) {
                 accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
             }
@@ -1327,6 +1390,9 @@ document.addEventListener("DOMContentLoaded", function () {
             displayName: displayText(payload.displayName, ""),
             email: normalizeValue(payload.email)
         };
+
+        syncAccountUi(buildAuthenticatedProfileFallback());
+        restoreStaticCatalogSections();
 
         if (loginForm) {
             loginForm.reset();
@@ -1470,6 +1536,13 @@ document.addEventListener("DOMContentLoaded", function () {
         return requestJson("/api/catalog")
             .then(renderCatalog)
             .catch(function () {
+                if (authState.accessToken) {
+                    restoreStaticCatalogSections();
+                } else if (lastCatalogRenderMode === "catalog" || lastCatalogRenderMode === "gate") {
+                    renderGalleryLoginGate(initialGalleryBrandCount || 12);
+                } else {
+                    restoreStaticCatalogSections();
+                }
                 setCatalogStatus("暂时无法从后端加载最新图库，当前显示静态备用内容。", "error");
                 highlightCurrentNav();
                 updateBackToHomeButton();
