@@ -2,6 +2,7 @@ package com.vehiclewallpaper.backend.web;
 
 import com.vehiclewallpaper.backend.admin.AdminSecurityNotConfiguredException;
 import com.vehiclewallpaper.backend.admin.AdminUnauthorizedException;
+import com.vehiclewallpaper.backend.user.UserUnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -66,6 +67,19 @@ public class RestExceptionHandler {
     @ExceptionHandler(AdminUnauthorizedException.class)
     public ResponseEntity<ApiErrorResponse> handleAdminUnauthorized(AdminUnauthorizedException exception,
                                                                     HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+            HttpStatus.UNAUTHORIZED.value(),
+            HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+            exception.getMessage(),
+            request.getRequestURI(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(UserUnauthorizedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUserUnauthorized(UserUnauthorizedException exception,
+                                                                   HttpServletRequest request) {
         ApiErrorResponse response = new ApiErrorResponse(
             HttpStatus.UNAUTHORIZED.value(),
             HttpStatus.UNAUTHORIZED.getReasonPhrase(),

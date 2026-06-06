@@ -159,6 +159,16 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public CatalogProfileResponse getProfile(String visitorKey, int favoriteLimit, int downloadLimit) {
+        return getProfile(visitorKey, favoriteLimit, downloadLimit, false, "", "");
+    }
+
+    @Transactional(readOnly = true)
+    public CatalogProfileResponse getProfile(String visitorKey,
+                                             int favoriteLimit,
+                                             int downloadLimit,
+                                             boolean authenticated,
+                                             String displayName,
+                                             String email) {
         String normalizedVisitorKey = requireVisitorKey(visitorKey);
         CatalogOverviewResponse overview = getOverview(normalizedVisitorKey);
         Map<String, WallpaperResponse> wallpaperBySlug = flattenWallpapersBySlug(overview);
@@ -193,6 +203,9 @@ public class CatalogService {
 
         return new CatalogProfileResponse(
             normalizedVisitorKey,
+            authenticated,
+            normalizeValue(displayName),
+            normalizeValue(email),
             wallpaperFavoriteRepository.countByVisitorKey(normalizedVisitorKey),
             wallpaperDownloadEventRepository.countByVisitorKey(normalizedVisitorKey),
             favorites,

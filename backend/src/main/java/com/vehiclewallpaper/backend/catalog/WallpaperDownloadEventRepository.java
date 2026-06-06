@@ -24,6 +24,7 @@ public interface WallpaperDownloadEventRepository extends JpaRepository<Wallpape
     int deleteByWallpaperId(@Param("wallpaperId") Long wallpaperId);
 
     @Modifying(clearAutomatically = true)
-    @Query("delete from WallpaperDownloadEventEntity download where download.wallpaper.brand.id = :brandId")
+    @Query("delete from WallpaperDownloadEventEntity download where download.wallpaper.id in "
+        + "(select wallpaper.id from WallpaperEntity wallpaper where wallpaper.brand.id = :brandId)")
     int deleteByBrandId(@Param("brandId") Long brandId);
 }

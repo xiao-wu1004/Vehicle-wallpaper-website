@@ -18,9 +18,27 @@ document.addEventListener("DOMContentLoaded", function () {
     const modalHires = document.getElementById("modalHires");
     const modalImageContainer = document.querySelector(".modal-image-container");
     const downloadBtn = document.getElementById("downloadBtn");
+    const modalFavoriteButton = document.getElementById("modalFavoriteButton");
     const closeBtn = document.querySelector(".close");
     const form = document.querySelector("#contact form");
     const feedbackBlockquote = document.querySelector("#feedback blockquote");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+    const loginEmailInput = document.getElementById("loginEmail");
+    const loginPasswordInput = document.getElementById("loginPassword");
+    const registerDisplayNameInput = document.getElementById("registerDisplayName");
+    const registerEmailInput = document.getElementById("registerEmail");
+    const registerPasswordInput = document.getElementById("registerPassword");
+    const accountForms = document.getElementById("accountForms");
+    const accountStatusCopy = document.getElementById("accountStatusCopy");
+    const accountIdentity = document.getElementById("accountIdentity");
+    const accountDisplayName = document.getElementById("accountDisplayName");
+    const accountEmail = document.getElementById("accountEmail");
+    const logoutButton = document.getElementById("logoutButton");
+    const accountFavoriteCount = document.getElementById("accountFavoriteCount");
+    const accountDownloadCount = document.getElementById("accountDownloadCount");
+    const accountFavoritesList = document.getElementById("accountFavoritesList");
+    const accountDownloadsList = document.getElementById("accountDownloadsList");
     const defaultApiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
     const utf8Decoder = typeof TextDecoder === "function" ? new TextDecoder("utf-8", { fatal: true }) : null;
     const brandNameFallbacks = {
@@ -40,6 +58,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const contactHashes = new Set(["#contact", "#feedback"]);
     const scrollLocks = new Set();
     const preloadCache = Object.create(null);
+    const savedVisitorKeyStorageName = "vehicleWallpaperVisitorKey";
+    const savedUserTokenStorageName = "vehicleWallpaperUserToken";
+    const authState = {
+        visitorKey: "",
+        accessToken: "",
+        currentUser: null,
+        profile: null
+    };
 
     let dynamicBrandHashes = new Set(["#brands"]);
     let modalScale = 1;
@@ -47,6 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let carouselTimer = null;
     let userStoppedCarousel = false;
     let catalogStatusElement = null;
+    let currentModalWallpaper = null;
 
     function normalizeValue(value) {
         return value == null ? "" : String(value).trim();
@@ -119,6 +146,89 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function buildApiUrl(path) {
         return getApiBase() + path;
+    }
+
+    function generateRandomHex(byteLength) {
+        if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+            const bytes = new Uint8Array(byteLength);
+            window.crypto.getRandomValues(bytes);
+            return Array.prototype.map.call(bytes, function (byteValue) {
+                return ("0" + byteValue.toString(16)).slice(-2);
+            }).join("");
+        }
+
+        let fallback = "";
+        while (fallback.length < byteLength * 2) {
+            fallback += Math.random().toString(16).slice(2);
+        }
+        return fallback.slice(0, byteLength * 2);
+    }
+
+    function ensureVisitorKey() {
+        const savedKey = normalizeValue(localStorage.getItem(savedVisitorKeyStorageName));
+        if (savedKey && /^[A-Za-z0-9_-]{16,96}$/.test(savedKey)) {
+            authState.visitorKey = savedKey;
+            return savedKey;
+        }
+
+        const generatedKey = "visitor_" + generateRandomHex(16);
+        localStorage.setItem(savedVisitorKeyStorageName, generatedKey);
+        authState.visitorKey = generatedKey;
+        return generatedKey;
+    }
+
+    function restoreAccessToken() {
+        authState.accessToken = normalizeValue(localStorage.getItem(savedUserTokenStorageName));
+        return authState.accessToken;
+    }
+
+    function rememberAccessToken(token) {
+        authState.accessToken = normalizeValue(token);
+        if (authState.accessToken) {
+            localStorage.setItem(savedUserTokenStorageName, authState.accessToken);
+            return;
+        }
+        localStorage.removeItem(savedUserTokenStorageName);
+    }
+
+    function clearAccessToken() {
+        authState.currentUser = null;
+        rememberAccessToken("");
+    }
+
+    function buildApiHeaders(extraHeaders) {
+        const headers = Object.assign({
+            Accept: "application/json"
+        }, extraHeaders || {});
+
+        if (authState.visitorKey) {
+            headers["X-Visitor-Key"] = authState.visitorKey;
+        }
+
+        if (authState.accessToken) {
+            headers.Authorization = "Bearer " + authState.accessToken;
+        }
+
+        return headers;
+    }
+
+    async function requestJson(path, options) {
+        const requestOptions = Object.assign({}, options || {});
+        requestOptions.headers = buildApiHeaders(requestOptions.headers);
+
+        const response = await fetch(buildApiUrl(path), requestOptions);
+        const payload = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok) {
+            const error = new Error(payload.message || "Request failed.");
+            error.status = response.status;
+            error.fieldErrors = payload.fieldErrors || {};
+            throw error;
+        }
+
+        return payload;
     }
 
     function resolveAssetUrl(path) {
@@ -349,11 +459,55 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function getPreviewSrc(card) {
+        const previewSrc = normalizeValue(card && card.dataset && card.dataset.preview);
+        if (previewSrc) {
+            return previewSrc;
+        }
+
         const image = card.querySelector("img");
         if (!image) {
             return "";
         }
         return image.currentSrc || image.getAttribute("src") || "";
+    }
+
+    function getWallpaperDataFromElement(element) {
+        if (!element) {
+            return null;
+        }
+
+        return {
+            wallpaperId: normalizeValue(element.dataset.wallpaperId),
+            title: normalizeValue(element.dataset.title),
+            brandName: normalizeValue(element.dataset.brand),
+            previewSrc: normalizeValue(element.dataset.preview) || getPreviewSrc(element),
+            fullSrc: normalizeValue(element.dataset.full),
+            favorited: element.dataset.favorited === "true"
+        };
+    }
+
+    function setFavoriteButtonState(button, favorited) {
+        if (!button) {
+            return;
+        }
+
+        const isFavorited = Boolean(favorited);
+        button.dataset.favorited = isFavorited ? "true" : "false";
+        button.classList.toggle("is-active", isFavorited);
+        button.textContent = isFavorited ? "已收藏" : "收藏";
+    }
+
+    function setButtonBusy(button, isBusy) {
+        if (!button) {
+            return;
+        }
+
+        button.disabled = Boolean(isBusy);
+        if (isBusy) {
+            button.setAttribute("aria-busy", "true");
+        } else {
+            button.removeAttribute("aria-busy");
+        }
     }
 
     function getHiResPreviewSrc(fullSrc) {
@@ -455,6 +609,13 @@ document.addEventListener("DOMContentLoaded", function () {
         modalHires.style.transform = "scale(1)";
         downloadBtn.style.display = "none";
         downloadBtn.href = "#";
+        downloadBtn.dataset.wallpaperId = "";
+        currentModalWallpaper = null;
+        if (modalFavoriteButton) {
+            modalFavoriteButton.hidden = true;
+            modalFavoriteButton.dataset.wallpaperId = "";
+            setFavoriteButtonState(modalFavoriteButton, false);
+        }
         removeScrollLock("modal");
     }
 
@@ -463,9 +624,15 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        const fullSrc = card.dataset.full || "";
+        const wallpaperData = getWallpaperDataFromElement(card);
+        if (!wallpaperData) {
+            return;
+        }
+
+        const fullSrc = wallpaperData.fullSrc || "";
         const hiResSrc = getHiResPreviewSrc(fullSrc) || fullSrc;
-        const previewSrc = getPreviewSrc(card);
+        const previewSrc = wallpaperData.previewSrc || getPreviewSrc(card);
+        currentModalWallpaper = wallpaperData;
 
         modal.classList.add("show");
         modal.setAttribute("aria-hidden", "false");
@@ -479,7 +646,17 @@ document.addEventListener("DOMContentLoaded", function () {
         modalPlaceholder.src = previewSrc;
         downloadBtn.href = fullSrc;
         downloadBtn.setAttribute("download", fullSrc.split("/").pop() || "wallpaper");
+        downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
         downloadBtn.style.display = "inline-flex";
+
+        if (modalFavoriteButton && wallpaperData.wallpaperId) {
+            modalFavoriteButton.hidden = false;
+            modalFavoriteButton.dataset.wallpaperId = wallpaperData.wallpaperId;
+            setFavoriteButtonState(modalFavoriteButton, wallpaperData.favorited);
+        } else if (modalFavoriteButton) {
+            modalFavoriteButton.hidden = true;
+            modalFavoriteButton.dataset.wallpaperId = "";
+        }
 
         const cachedImage = preloadCache[hiResSrc];
 
@@ -699,11 +876,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function createWallpaperCard(brandName, wallpaper, index) {
         const title = resolveWallpaperTitle(brandName, wallpaper);
+        const article = document.createElement("article");
+        article.className = "wallpaper-card";
         const button = document.createElement("button");
         button.className = "image-card";
         button.type = "button";
         button.setAttribute("aria-label", "预览" + brandName + "壁纸" + (index + 1));
         button.dataset.full = resolveAssetUrl(wallpaper.fullUrl || wallpaper.downloadUrl || wallpaper.previewUrl);
+        button.dataset.preview = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
+        button.dataset.wallpaperId = normalizeValue(wallpaper.id);
+        button.dataset.title = title;
+        button.dataset.brand = brandName;
+        button.dataset.favorited = wallpaper.favorited ? "true" : "false";
 
         const image = document.createElement("img");
         image.src = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
@@ -712,7 +896,36 @@ document.addEventListener("DOMContentLoaded", function () {
         image.decoding = "async";
 
         button.appendChild(image);
-        return button;
+
+        const body = document.createElement("div");
+        body.className = "wallpaper-card-body";
+
+        const copy = document.createElement("div");
+        copy.className = "wallpaper-card-copy";
+
+        const titleElement = document.createElement("h5");
+        titleElement.className = "wallpaper-card-title";
+        titleElement.textContent = title;
+
+        const meta = document.createElement("p");
+        meta.className = "wallpaper-card-meta";
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+
+        copy.appendChild(titleElement);
+        copy.appendChild(meta);
+
+        const favoriteButton = document.createElement("button");
+        favoriteButton.className = "favorite-toggle";
+        favoriteButton.type = "button";
+        favoriteButton.dataset.wallpaperId = normalizeValue(wallpaper.id);
+        setFavoriteButtonState(favoriteButton, Boolean(wallpaper.favorited));
+
+        body.appendChild(copy);
+        body.appendChild(favoriteButton);
+
+        article.appendChild(button);
+        article.appendChild(body);
+        return article;
     }
 
     function clearDynamicCatalogSections() {
@@ -858,6 +1071,258 @@ document.addEventListener("DOMContentLoaded", function () {
         startCarousel();
     }
 
+    function createProfileItem(wallpaper) {
+        const button = document.createElement("button");
+        button.className = "profile-item";
+        button.type = "button";
+        button.dataset.full = resolveAssetUrl(wallpaper.fullUrl || wallpaper.downloadUrl || wallpaper.previewUrl);
+        button.dataset.preview = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
+        button.dataset.wallpaperId = normalizeValue(wallpaper.id);
+        button.dataset.title = resolveWallpaperTitle("", wallpaper);
+        button.dataset.brand = normalizeValue(wallpaper.brandSlug);
+        button.dataset.favorited = wallpaper.favorited ? "true" : "false";
+
+        const image = document.createElement("img");
+        image.src = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
+        image.alt = resolveWallpaperTitle("", wallpaper);
+        image.loading = "lazy";
+        image.decoding = "async";
+
+        const copy = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = resolveWallpaperTitle("", wallpaper);
+        const meta = document.createElement("span");
+        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+
+        copy.appendChild(title);
+        copy.appendChild(meta);
+        button.appendChild(image);
+        button.appendChild(copy);
+        return button;
+    }
+
+    function renderProfileList(container, items, emptyMessage) {
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = "";
+        if (!Array.isArray(items) || items.length === 0) {
+            const emptyState = document.createElement("p");
+            emptyState.className = "empty-state";
+            emptyState.textContent = emptyMessage;
+            container.appendChild(emptyState);
+            return;
+        }
+
+        items.forEach(function (wallpaper) {
+            container.appendChild(createProfileItem(wallpaper));
+        });
+    }
+
+    function syncAccountUi(profile) {
+        const activeProfile = profile || {
+            authenticated: false,
+            displayName: "",
+            email: "",
+            favoriteCount: 0,
+            downloadCount: 0,
+            favorites: [],
+            recentDownloads: []
+        };
+        const authenticated = Boolean(activeProfile.authenticated);
+
+        authState.profile = activeProfile;
+        authState.currentUser = authenticated
+            ? {
+                displayName: displayText(activeProfile.displayName, ""),
+                email: normalizeValue(activeProfile.email)
+            }
+            : null;
+
+        if (accountStatusCopy) {
+            accountStatusCopy.textContent = authenticated
+                ? "已登录，收藏和下载记录会随账号同步。"
+                : "当前以游客身份浏览，收藏和下载记录仅保存在本机浏览器。";
+        }
+
+        if (accountForms) {
+            accountForms.hidden = authenticated;
+        }
+
+        if (accountIdentity) {
+            accountIdentity.hidden = !authenticated;
+        }
+
+        if (accountDisplayName) {
+            accountDisplayName.textContent = displayText(activeProfile.displayName, "已登录用户");
+        }
+
+        if (accountEmail) {
+            accountEmail.textContent = normalizeValue(activeProfile.email);
+        }
+
+        if (logoutButton) {
+            logoutButton.hidden = !authenticated;
+        }
+
+        if (accountFavoriteCount) {
+            accountFavoriteCount.textContent = String(activeProfile.favoriteCount || 0);
+        }
+
+        if (accountDownloadCount) {
+            accountDownloadCount.textContent = String(activeProfile.downloadCount || 0);
+        }
+
+        renderProfileList(
+            accountFavoritesList,
+            activeProfile.favorites,
+            authenticated ? "还没有收藏任何壁纸，去壁纸库挑一张吧。" : "游客收藏会显示在这里。"
+        );
+        renderProfileList(
+            accountDownloadsList,
+            activeProfile.recentDownloads,
+            authenticated ? "还没有下载记录，打开任意壁纸即可开始积累。" : "最近下载会显示在这里。"
+        );
+    }
+
+    async function syncAuthStatus() {
+        restoreAccessToken();
+
+        if (!authState.accessToken) {
+            authState.currentUser = null;
+            return;
+        }
+
+        try {
+            const payload = await requestJson("/api/auth/me");
+            if (!payload.authenticated) {
+                clearAccessToken();
+                return;
+            }
+
+            authState.currentUser = {
+                displayName: displayText(payload.displayName, ""),
+                email: normalizeValue(payload.email)
+            };
+        } catch (error) {
+            // Keep the last known token in storage when the backend is temporarily unavailable.
+        }
+    }
+
+    async function loadProfile() {
+        if (!accountFavoriteCount || !accountDownloadCount) {
+            return;
+        }
+
+        try {
+            const profile = await requestJson("/api/catalog/me");
+            syncAccountUi(profile);
+        } catch (error) {
+            if (accountStatusCopy) {
+                accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
+            }
+            renderProfileList(accountFavoritesList, [], "个人中心暂时不可用。");
+            renderProfileList(accountDownloadsList, [], "个人中心暂时不可用。");
+        }
+    }
+
+    async function handleAuthSuccess(payload) {
+        rememberAccessToken(payload.accessToken);
+        authState.currentUser = {
+            displayName: displayText(payload.displayName, ""),
+            email: normalizeValue(payload.email)
+        };
+
+        if (loginForm) {
+            loginForm.reset();
+        }
+        if (registerForm) {
+            registerForm.reset();
+        }
+
+        await Promise.all([loadCatalog(), loadProfile()]);
+    }
+
+    function promptLogin(message) {
+        if (window.confirm(message || "登录后即可使用完整功能，现在去登录？")) {
+            const accountSection = document.getElementById("account");
+            if (accountSection) {
+                accountSection.scrollIntoView({ behavior: "smooth" });
+            }
+            const loginInput = document.getElementById("loginEmail");
+            if (loginInput) {
+                setTimeout(function () { loginInput.focus(); }, 500);
+            }
+        }
+    }
+
+    async function toggleFavorite(button) {
+        const wallpaperId = normalizeValue(button && button.dataset.wallpaperId);
+        if (!wallpaperId) {
+            return;
+        }
+
+        if (!authState.accessToken) {
+            promptLogin("收藏功能需要登录，现在去登录？");
+            return;
+        }
+
+        const shouldFavorite = button.dataset.favorited !== "true";
+        setButtonBusy(button, true);
+        if (modalFavoriteButton && modalFavoriteButton !== button && modalFavoriteButton.dataset.wallpaperId === wallpaperId) {
+            setButtonBusy(modalFavoriteButton, true);
+        }
+
+        try {
+            const endpoint = "/api/catalog/wallpapers/" + encodeURIComponent(wallpaperId) + "/favorite";
+            const payload = shouldFavorite
+                ? await requestJson(endpoint, { method: "POST" })
+                : await requestJson(endpoint, { method: "DELETE" });
+
+            setFavoriteButtonState(button, Boolean(payload.favorited));
+            if (modalFavoriteButton && modalFavoriteButton.dataset.wallpaperId === wallpaperId) {
+                setFavoriteButtonState(modalFavoriteButton, Boolean(payload.favorited));
+            }
+
+            await Promise.all([loadCatalog(), loadProfile()]);
+        } catch (error) {
+            window.alert(error.message || "收藏操作失败，请稍后重试。");
+        } finally {
+            setButtonBusy(button, false);
+            if (modalFavoriteButton && modalFavoriteButton !== button && modalFavoriteButton.dataset.wallpaperId === wallpaperId) {
+                setButtonBusy(modalFavoriteButton, false);
+            }
+        }
+    }
+
+    async function recordDownload(wallpaperId) {
+        const normalizedWallpaperId = normalizeValue(wallpaperId);
+        if (!normalizedWallpaperId) {
+            return;
+        }
+
+        if (!authState.accessToken) {
+            promptLogin("下载记录需要登录才能同步，现在去登录？");
+            return;
+        }
+
+        try {
+            await requestJson("/api/catalog/wallpapers/" + encodeURIComponent(normalizedWallpaperId) + "/downloads", {
+                method: "POST"
+            });
+            loadProfile();
+        } catch (error) {
+            // Downloads should still continue even if analytics tracking fails.
+        }
+    }
+
+    async function initializeAccountExperience() {
+        ensureVisitorKey();
+        await syncAuthStatus();
+        await Promise.all([loadCatalog(), loadProfile()]);
+    }
+
     function renderCatalog(overview) {
         const brands = Array.isArray(overview && overview.brands)
             ? overview.brands.map(function (brand) {
@@ -901,17 +1366,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         setCatalogStatus("正在从后端加载最新壁纸库…", "loading");
 
-        return fetch(buildApiUrl("/api/catalog"), {
-            headers: {
-                Accept: "application/json"
-            }
-        })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error("Failed to load catalog overview.");
-                }
-                return response.json();
-            })
+        return requestJson("/api/catalog")
             .then(renderCatalog)
             .catch(function () {
                 setCatalogStatus("暂时无法从后端加载最新图库，当前显示静态备用内容。", "error");
@@ -970,6 +1425,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 return;
             }
+        }
+
+        const favoriteButton = event.target.closest(".favorite-toggle");
+        if (favoriteButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleFavorite(favoriteButton);
+            return;
+        }
+
+        const profileItem = event.target.closest(".profile-item");
+        if (profileItem && modal && modalPlaceholder && modalHires && downloadBtn) {
+            event.preventDefault();
+            openModal(profileItem);
+            return;
         }
 
         const clickedCard = event.target.closest(".image-card");
@@ -1046,6 +1516,10 @@ document.addEventListener("DOMContentLoaded", function () {
             if (event.key === "Escape" && modal.classList.contains("show")) {
                 closeModal();
             }
+        });
+
+        downloadBtn.addEventListener("click", function () {
+            recordDownload(downloadBtn.dataset.wallpaperId);
         });
     }
 
@@ -1177,6 +1651,96 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    if (loginForm) {
+        const loginSubmitButton = loginForm.querySelector(".form-submit");
+        const loginStatus = ensureFormStatusElement(loginForm);
+
+        loginForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            setFormStatus(loginStatus, "", "");
+
+            if (!loginEmailInput.value.trim() || !loginPasswordInput.value.trim()) {
+                setFormStatus(loginStatus, "请输入邮箱和密码。", "error");
+                return;
+            }
+
+            setButtonBusy(loginSubmitButton, true);
+            try {
+                const payload = await requestJson("/api/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: loginEmailInput.value.trim(),
+                        password: loginPasswordInput.value
+                    })
+                });
+
+                setFormStatus(loginStatus, "登录成功，正在同步你的收藏。", "success");
+                await handleAuthSuccess(payload);
+            } catch (error) {
+                setFormStatus(loginStatus, error.message || "登录失败，请稍后重试。", "error");
+            } finally {
+                setButtonBusy(loginSubmitButton, false);
+            }
+        });
+    }
+
+    if (registerForm) {
+        const registerSubmitButton = registerForm.querySelector(".form-submit");
+        const registerStatus = ensureFormStatusElement(registerForm);
+
+        registerForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            setFormStatus(registerStatus, "", "");
+
+            if (!registerDisplayNameInput.value.trim() || !registerEmailInput.value.trim() || !registerPasswordInput.value.trim()) {
+                setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
+                return;
+            }
+
+            setButtonBusy(registerSubmitButton, true);
+            try {
+                const payload = await requestJson("/api/auth/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        displayName: registerDisplayNameInput.value.trim(),
+                        email: registerEmailInput.value.trim(),
+                        password: registerPasswordInput.value
+                    })
+                });
+
+                setFormStatus(registerStatus, "注册成功，正在为你建立个人中心。", "success");
+                await handleAuthSuccess(payload);
+            } catch (error) {
+                setFormStatus(registerStatus, error.message || "注册失败，请稍后重试。", "error");
+            } finally {
+                setButtonBusy(registerSubmitButton, false);
+            }
+        });
+    }
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", async function () {
+            setButtonBusy(logoutButton, true);
+            try {
+                if (authState.accessToken) {
+                    await requestJson("/api/auth/logout", { method: "POST" });
+                }
+            } catch (error) {
+                // Local logout should still finish even if the server call fails.
+            } finally {
+                clearAccessToken();
+                await Promise.all([loadCatalog(), loadProfile()]);
+                setButtonBusy(logoutButton, false);
+            }
+        });
+    }
+
     function handleViewportChange() {
         if (!isMobileViewport()) {
             closeMenu();
@@ -1200,8 +1764,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 0);
     }
     updateBackToHomeButton();
+    syncAccountUi(null);
     loadFeedbackHighlights();
-    loadCatalog();
+    initializeAccountExperience();
 
     window.addEventListener("hashchange", function () {
         if (window.location.hash) {

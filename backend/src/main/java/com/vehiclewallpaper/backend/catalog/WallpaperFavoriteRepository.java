@@ -30,6 +30,7 @@ public interface WallpaperFavoriteRepository extends JpaRepository<WallpaperFavo
     int deleteByWallpaperId(@Param("wallpaperId") Long wallpaperId);
 
     @Modifying(clearAutomatically = true)
-    @Query("delete from WallpaperFavoriteEntity favorite where favorite.wallpaper.brand.id = :brandId")
+    @Query("delete from WallpaperFavoriteEntity favorite where favorite.wallpaper.id in "
+        + "(select wallpaper.id from WallpaperEntity wallpaper where wallpaper.brand.id = :brandId)")
     int deleteByBrandId(@Param("brandId") Long brandId);
 }
