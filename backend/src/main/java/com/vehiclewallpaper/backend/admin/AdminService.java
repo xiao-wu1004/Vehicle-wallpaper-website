@@ -14,7 +14,10 @@ import com.vehiclewallpaper.backend.feedback.FeedbackRepository;
 import com.vehiclewallpaper.backend.feedback.FeedbackStatus;
 import com.vehiclewallpaper.backend.storage.StoredAsset;
 import com.vehiclewallpaper.backend.storage.WallpaperStorageManager;
+import com.vehiclewallpaper.backend.user.UserAccountEntity;
+import com.vehiclewallpaper.backend.user.UserAccountRepository;
 import com.vehiclewallpaper.backend.web.ResourceNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,6 +50,8 @@ public class AdminService {
     private final WallpaperFavoriteRepository wallpaperFavoriteRepository;
     private final WallpaperDownloadEventRepository wallpaperDownloadEventRepository;
     private final FeedbackRepository feedbackRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final PasswordEncoder passwordEncoder;
     private final AdminOperationLogService adminOperationLogService;
     private final WallpaperStorageManager wallpaperStorageManager;
 
@@ -57,6 +62,8 @@ public class AdminService {
                         WallpaperFavoriteRepository wallpaperFavoriteRepository,
                         WallpaperDownloadEventRepository wallpaperDownloadEventRepository,
                         FeedbackRepository feedbackRepository,
+                        UserAccountRepository userAccountRepository,
+                        PasswordEncoder passwordEncoder,
                         AdminOperationLogService adminOperationLogService,
                         WallpaperStorageManager wallpaperStorageManager) {
         this.catalogService = catalogService;
@@ -66,6 +73,8 @@ public class AdminService {
         this.wallpaperFavoriteRepository = wallpaperFavoriteRepository;
         this.wallpaperDownloadEventRepository = wallpaperDownloadEventRepository;
         this.feedbackRepository = feedbackRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.passwordEncoder = passwordEncoder;
         this.adminOperationLogService = adminOperationLogService;
         this.wallpaperStorageManager = wallpaperStorageManager;
     }
@@ -420,6 +429,52 @@ public class AdminService {
                 + " and featured=" + updatedMessage.isFeatured() + "."
         );
         return toFeedbackResponse(updatedMessage);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> listUsers() {
+        List<AdminUserResponse> responses = new ArrayList<>();
+        for (UserAccountEntity account : userAccountRepository.findAll()) {
+            responses.add(new AdminUserResponse(
+                account.getId(),
+                account.getPublicKey(),
+                account.getEmail(),
+                account.getDisplayName(),
+                account.isActive(),
+                account.getFailedLoginAttempts(),
+                account.getLockedUntil(),
+                account.getLastLoginAt(),
+                account.getCreatedAt()
+            ));
+        }
+        return responses;
+    }
+
+    @Transactional
+    public AdminActionStatusResponse resetUserPassword(Long userId, AdminResetUserPasswordRequest request) {
+        String newPassword = request.getNewPassword() == null ? "" : request.getNewPassword().trim();
+        if (newPassword.isEmpty()) {
+            throw new IllegalArgumentException("New password cannot be empty.");
+        }
+        if (newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("Password must be at least 8 characters and contain both letters and numbers.");
+        }
+
+        UserAccountEntity account = userAccountRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        account.setPasswordHash(passwordEncoder.encode(newPassword));
+        account.setFailedLoginAttempts(0);
+        account.setLockedUntil(null);
+        userAccountRepository.save(account);
+
+        adminOperationLogService.logCurrentAction(
+            "USER_PASSWORD_RESET",
+            "USER",
+            account.getId().toString(),
+            "Reset password for user \"" + account.getDisplayName() + "\" (" + account.getEmail() + ")."
+        );
+        return new AdminActionStatusResponse("Password has been reset for user \"" + account.getDisplayName() + "\".", 1);
     }
 
     private AdminBrandResponse toBrandResponse(BrandEntity brand) {

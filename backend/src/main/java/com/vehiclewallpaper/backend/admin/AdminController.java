@@ -107,4 +107,16 @@ public class AdminController {
                                                 @RequestBody AdminFeedbackUpdateRequest request) {
         return adminService.updateFeedback(feedbackId, request);
     }
+
+    @GetMapping("/users")
+    public List<AdminUserResponse> users() {
+        return adminService.listUsers();
+    }
+
+    @PostMapping("/users/{userId}/reset-password")
+    @ResponseStatus(HttpStatus.OK)
+    public AdminActionStatusResponse resetUserPassword(@PathVariable Long userId,
+                                                       @Valid @RequestBody AdminResetUserPasswordRequest request) {
+        return adminService.resetUserPassword(userId, request);
+    }
 }
