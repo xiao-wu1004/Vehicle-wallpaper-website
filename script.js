@@ -801,6 +801,40 @@ document.addEventListener("DOMContentLoaded", function () {
         return statusElement;
     }
 
+    function friendlyAuthError(message) {
+        if (!message) {
+            return "操作失败，请稍后重试。";
+        }
+        const lower = message.toLowerCase();
+        if (lower.includes("too many") && lower.includes("registration")) {
+            return "注册请求过于频繁，请 15 分钟后再试。";
+        }
+        if (lower.includes("too many") && lower.includes("login")) {
+            return "登录尝试次数过多，请 15 分钟后再试。";
+        }
+        if (lower.includes("temporarily locked")) {
+            return "该账号因多次登录失败已被临时锁定，请 30 分钟后再试。";
+        }
+        if (lower.includes("incorrect email or password") || lower.includes("email or password")) {
+            return "邮箱或密码不正确，请检查后重试。";
+        }
+        if (lower.includes("already registered") || lower.includes("already exists")) {
+            return "该邮箱已被注册，请直接登录或使用其他邮箱。";
+        }
+        if (lower.includes("password") && (lower.includes("8") || lower.includes("letter") || lower.includes("number"))) {
+            return "密码需要至少 8 位，同时包含字母和数字。";
+        }
+        if (lower.includes("visitor key is required")) {
+            return "请先登录后再操作。";
+        }
+        return message;
+    }
+
+    function toggleHint(element, isMet) {
+        if (!element) return;
+        element.classList.toggle("met", isMet);
+    }
+
     function setFormStatus(statusElement, message, type) {
         if (!statusElement) {
             return;
@@ -1724,7 +1758,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 setFormStatus(loginStatus, "登录成功，正在同步你的收藏。", "success");
                 await handleAuthSuccess(payload);
             } catch (error) {
-                setFormStatus(loginStatus, error.message || "登录失败，请稍后重试。", "error");
+                setFormStatus(loginStatus, friendlyAuthError(error.message), "error");
             } finally {
                 setButtonBusy(loginSubmitButton, false);
             }
@@ -1734,13 +1768,33 @@ document.addEventListener("DOMContentLoaded", function () {
     if (registerForm) {
         const registerSubmitButton = registerForm.querySelector(".form-submit");
         const registerStatus = ensureFormStatusElement(registerForm);
+        const hintLength = document.getElementById("hintLength");
+        const hintLetter = document.getElementById("hintLetter");
+        const hintNumber = document.getElementById("hintNumber");
+
+        // 密码强度实时提示
+        if (registerPasswordInput) {
+            registerPasswordInput.addEventListener("input", function () {
+                const value = this.value;
+                toggleHint(hintLength, value.length >= 8);
+                toggleHint(hintLetter, /[A-Za-z]/.test(value));
+                toggleHint(hintNumber, /[0-9]/.test(value));
+            });
+        }
 
         registerForm.addEventListener("submit", async function (event) {
             event.preventDefault();
             setFormStatus(registerStatus, "", "");
 
-            if (!registerDisplayNameInput.value.trim() || !registerEmailInput.value.trim() || !registerPasswordInput.value.trim()) {
+            const registerPassword = registerPasswordInput.value;
+
+            if (!registerDisplayNameInput.value.trim() || !registerEmailInput.value.trim() || !registerPassword.trim()) {
                 setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
+                return;
+            }
+
+            if (registerPassword.length < 8 || !/[A-Za-z]/.test(registerPassword) || !/[0-9]/.test(registerPassword)) {
+                setFormStatus(registerStatus, "密码需要至少 8 位，同时包含字母和数字。", "error");
                 return;
             }
 
@@ -1761,7 +1815,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 setFormStatus(registerStatus, "注册成功，正在为你建立个人中心。", "success");
                 await handleAuthSuccess(payload);
             } catch (error) {
-                setFormStatus(registerStatus, error.message || "注册失败，请稍后重试。", "error");
+                setFormStatus(registerStatus, friendlyAuthError(error.message), "error");
             } finally {
                 setButtonBusy(registerSubmitButton, false);
             }
