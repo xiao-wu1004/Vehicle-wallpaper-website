@@ -1260,8 +1260,8 @@
         gate.innerHTML =
             '<div class="gallery-login-gate-card">'
             + '<p class="gallery-login-gate-icon">🔐</p>'
-            + '<h3>登录后查看全部壁纸/h3>'
-            + '<p>我们收录了 <strong>' + brandCount + '</strong>  个品牌的精选壁纸，注册即可浏览和下载。/p>'
+            + '<h3>登录后查看全部壁纸</h3>'
+            + '<p>我们收录了 <strong>12</strong> 个品牌的精选壁纸，注册即可浏览和下载。</p>'
             + '<button type="button" class="form-submit gallery-login-gate-button">去登录 / 注册</button>'
             + '</div>';
 
