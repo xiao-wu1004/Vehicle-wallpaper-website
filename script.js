@@ -1055,14 +1055,34 @@
     }
 
     function triggerFileDownload(url, fileName) {
-        var anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = fileName;
-        anchor.target = "_blank";
-        anchor.rel = "noopener";
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
+        // Blob 方式：先 fetch 图片再触发下载，浏览器不会打开预览
+        fetch(url)
+            .then(function (response) {
+                if (!response.ok) throw new Error("Download failed");
+                return response.blob();
+            })
+            .then(function (blob) {
+                var blobUrl = URL.createObjectURL(blob);
+                var anchor = document.createElement("a");
+                anchor.href = blobUrl;
+                anchor.download = fileName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                // 延迟释放 blob URL
+                setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 5000);
+            })
+            .catch(function () {
+                // Blob 方式失败时降级为直接链接
+                var anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = fileName;
+                anchor.target = "_blank";
+                anchor.rel = "noopener";
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+            });
     }
 
     function toggleHint(element, isMet) {
