@@ -681,8 +681,10 @@
         modalHires.src = "";
 
         modalPlaceholder.src = previewSrc;
+        // 下载链接：原图直链，浏览器触发下载
         downloadBtn.href = fullSrc;
-        downloadBtn.setAttribute("download", fullSrc.split("/").pop() || "wallpaper");
+        const downloadFileName = decodeURIComponent(fullSrc.split("/").pop() || "wallpaper");
+        downloadBtn.setAttribute("download", downloadFileName);
         downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
         downloadBtn.style.display = "inline-flex";
 
@@ -1050,6 +1052,17 @@
         if (firstField) {
             firstField.focus();
         }
+    }
+
+    function triggerFileDownload(url, fileName) {
+        var anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.target = "_blank";
+        anchor.rel = "noopener";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
     }
 
     function toggleHint(element, isMet) {
@@ -1676,8 +1689,8 @@
             return;
         }
 
+        // 未登录时静默跳过记录，不弹窗阻断浏览器下载
         if (!authState.accessToken) {
-            promptLogin("下载记录需要登录才能同步，现在去登录？");
             return;
         }
 
@@ -1906,7 +1919,15 @@
             }
         });
 
-        downloadBtn.addEventListener("click", function () {
+        downloadBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            var href = downloadBtn.getAttribute("href");
+            var fileName = downloadBtn.getAttribute("download") || "wallpaper.jpg";
+            if (!href || href === "#") {
+                return;
+            }
+            // 先触发下载，异步记录
+            triggerFileDownload(href, fileName);
             recordDownload(downloadBtn.dataset.wallpaperId);
         });
     }
