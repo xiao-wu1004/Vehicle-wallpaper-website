@@ -797,7 +797,13 @@ document.addEventListener("DOMContentLoaded", function () {
         statusElement.className = "form-status";
         statusElement.setAttribute("role", "status");
         statusElement.setAttribute("aria-live", "polite");
-        formElement.appendChild(statusElement);
+        // 插入到提交按钮之前，确保可见
+        const submitButton = formElement.querySelector(".form-submit");
+        if (submitButton) {
+            formElement.insertBefore(statusElement, submitButton);
+        } else {
+            formElement.appendChild(statusElement);
+        }
         return statusElement;
     }
 
@@ -837,11 +843,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function setFormStatus(statusElement, message, type) {
         if (!statusElement) {
+            if (message) {
+                window.alert(message);
+            }
             return;
         }
 
         statusElement.textContent = message || "";
         statusElement.classList.remove("is-success", "is-error");
+        statusElement.classList.remove("is-success", "is-error");
+
+        if (type === "error") {
+            statusElement.classList.add("is-error");
+            // 如果错误消息在视口外，滚动到可见区域
+            setTimeout(function () {
+                if (statusElement.getBoundingClientRect().top > window.innerHeight
+                    || statusElement.getBoundingClientRect().bottom < 0) {
+                    statusElement.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }, 100);
+        } else if (type === "success") {
+            statusElement.classList.add("is-success");
+        }
 
         if (type === "success") {
             statusElement.classList.add("is-success");
