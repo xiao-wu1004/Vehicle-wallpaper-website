@@ -1059,39 +1059,15 @@
     }
 
     function triggerFileDownload(url, fileName) {
-        // 确保绝对路径
-        var fetchUrl = url;
-        if (fetchUrl.indexOf("/") !== 0 && fetchUrl.indexOf("http") !== 0) {
-            fetchUrl = "/" + fetchUrl;
-        }
-        // Blob 方式：先 fetch 图片再触发下载，浏览器不会打开预览
-        fetch(fetchUrl)
-            .then(function (response) {
-                if (!response.ok) throw new Error("Download failed");
-                return response.blob();
-            })
-            .then(function (blob) {
-                var blobUrl = URL.createObjectURL(blob);
-                var anchor = document.createElement("a");
-                anchor.href = blobUrl;
-                anchor.download = fileName;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                // 延迟释放 blob URL
-                setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 5000);
-            })
-            .catch(function () {
-                // Blob 方式失败时降级为直接链接
-                var anchor = document.createElement("a");
-                anchor.href = fetchUrl;
-                anchor.download = fileName;
-                anchor.target = "_blank";
-                anchor.rel = "noopener";
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-            });
+        // 直接使用原始 URL + download 属性，浏览器根据设置决定：弹对话框或直接下载到默认目录
+        // Blob 方式反而会强制弹出"另存为"，不满足"直接下载到本地"需求
+        var anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
     }
 
     function toggleHint(element, isMet) {
