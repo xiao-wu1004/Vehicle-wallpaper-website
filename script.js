@@ -246,6 +246,7 @@
         }
         authState.currentUser = null;
         rememberAccessToken("");
+        clearAuthFormStatuses();
     }
 
     function buildApiHeaders(extraHeaders) {
@@ -1261,8 +1262,7 @@
         }
 
         if (config.clearStatus !== false) {
-            setFormStatus(loginForm && loginForm.querySelector(".form-status"), "", "");
-            setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
+            clearAuthFormStatuses();
         }
 
         if (!config.focus) {
@@ -1273,6 +1273,11 @@
         if (firstField) {
             firstField.focus();
         }
+    }
+
+    function clearAuthFormStatuses() {
+        setFormStatus(loginForm && loginForm.querySelector(".form-status"), "", "");
+        setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
     }
 
     function triggerFileDownload(url, fileName) {
@@ -1801,6 +1806,10 @@
                 email: normalizeValue(activeProfile.email)
             }
             : null;
+
+        if (!authenticated) {
+            clearAuthFormStatuses();
+        }
 
         if (accountStatusCopy) {
             accountStatusCopy.textContent = authenticated
