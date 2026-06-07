@@ -570,6 +570,7 @@
 
         const isFavorited = Boolean(favorited);
         button.dataset.favorited = isFavorited ? "true" : "false";
+        button.removeAttribute("data-idle-label");
         button.classList.toggle("is-active", isFavorited);
         button.textContent = isFavorited ? "已收藏" : "收藏";
     }
@@ -579,21 +580,23 @@
             return;
         }
 
+        const busyLabel = normalizeValue(button.dataset.busyLabel);
+
         button.disabled = Boolean(isBusy);
         if (isBusy) {
-            if (!button.dataset.idleLabel) {
+            if (busyLabel) {
                 button.dataset.idleLabel = button.textContent;
-            }
-            if (button.classList.contains("form-submit")) {
-                button.textContent = button.dataset.busyLabel || "处理中...";
+                button.textContent = busyLabel;
             }
             button.setAttribute("aria-busy", "true");
-        } else {
-            if (button.dataset.idleLabel) {
-                button.textContent = button.dataset.idleLabel;
-            }
-            button.removeAttribute("aria-busy");
+            return;
         }
+
+        if (busyLabel && button.dataset.idleLabel) {
+            button.textContent = button.dataset.idleLabel;
+            button.removeAttribute("data-idle-label");
+        }
+        button.removeAttribute("aria-busy");
     }
 
     function formatWallpaperEngagementText(favoriteCount, downloadCount) {
