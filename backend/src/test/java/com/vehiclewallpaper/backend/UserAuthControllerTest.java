@@ -11,10 +11,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -127,6 +129,23 @@ class UserAuthControllerTest {
             .andExpect(jsonPath("$[0].favorited").value(true));
     }
 
+    @Test
+    void shouldRequireLoginForWallpaperDownloads() throws Exception {
+        DownloadTarget target = fetchFirstDownloadTarget();
+
+        mockMvc.perform(get("/download/{brand}/{filename}", target.brandSlug, target.fileName))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("下载功能需要登录。"));
+
+        String token = registerAndExtractAccessToken("Download Driver", "download-driver@example.com", "download-driver-password1");
+
+        mockMvc.perform(get("/download/{brand}/{filename}", target.brandSlug, target.fileName)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")))
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString(target.fileName)));
+    }
+
     private String registerAndExtractAccessToken(String displayName, String email, String password) throws Exception {
         String responseBody = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -155,5 +174,28 @@ class UserAuthControllerTest {
             }
         }
         return null;
+    }
+
+    private DownloadTarget fetchFirstDownloadTarget() throws Exception {
+        MvcResult overview = mockMvc.perform(get("/api/catalog")
+                .header("X-Visitor-Key", "download-target-guest"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        JsonNode overviewJson = objectMapper.readTree(overview.getResponse().getContentAsString());
+        JsonNode firstWallpaper = overviewJson.get("brands").get(0).get("wallpapers").get(0);
+        String fullUrl = firstWallpaper.get("fullUrl").asText();
+        String[] segments = fullUrl.split("/");
+        return new DownloadTarget(segments[2], segments[3]);
+    }
+
+    private static final class DownloadTarget {
+        private final String brandSlug;
+        private final String fileName;
+
+        private DownloadTarget(String brandSlug, String fileName) {
+            this.brandSlug = brandSlug;
+            this.fileName = fileName;
+        }
     }
 }

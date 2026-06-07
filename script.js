@@ -941,6 +941,7 @@
         downloadBtn.setAttribute("download", downloadFileName);
         downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
         downloadBtn.style.display = "inline-flex";
+        syncDownloadButtonState();
 
         if (modalFavoriteButton && wallpaperData.wallpaperId) {
             modalFavoriteButton.hidden = false;
@@ -1312,15 +1313,44 @@
         setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
     }
 
-    function triggerFileDownload(url, fileName) {
-        // /download 端点已带 Content-Disposition: attachment，浏览器直接下载
-        var anchor = document.createElement("a");
-        anchor.href = url;
+    async function triggerFileDownload(url, fileName) {
+        const response = await fetch(url, {
+            headers: buildApiHeaders({
+                Accept: "*/*"
+            })
+        });
+
+        if (!response.ok) {
+            const payload = await response.json().catch(function () {
+                return {};
+            });
+            const error = new Error(payload.message || "下载失败，请稍后重试。");
+            error.status = response.status;
+            throw error;
+        }
+
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
         anchor.download = fileName;
         anchor.style.display = "none";
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
+        window.setTimeout(function () {
+            window.URL.revokeObjectURL(objectUrl);
+        }, 0);
+    }
+
+    function syncDownloadButtonState() {
+        if (!downloadBtn) {
+            return;
+        }
+
+        const authenticated = Boolean(authState.accessToken);
+        downloadBtn.textContent = authenticated ? "下载图片" : "登录后下载";
+        downloadBtn.setAttribute("aria-label", authenticated ? "下载图片" : "登录后下载");
     }
 
     function toggleHint(element, isMet) {
@@ -2151,6 +2181,8 @@
             accountDownloadCount.textContent = String(activeProfile.downloadCount || 0);
         }
 
+        syncDownloadButtonState();
+
         if (authenticated) {
             renderProfileList(
                 accountFavoritesList,
@@ -2603,8 +2635,24 @@
             if (!href || href === "#") {
                 return;
             }
-            triggerFileDownload(href, fileName);
-            recordDownload(downloadBtn.dataset.wallpaperId);
+
+            if (!authState.accessToken) {
+                promptLogin("下载功能需要登录，现在去登录？");
+                return;
+            }
+
+            triggerFileDownload(href, fileName)
+                .then(function () {
+                    recordDownload(downloadBtn.dataset.wallpaperId);
+                })
+                .catch(function (error) {
+                    if (error && error.status === 401) {
+                        clearAccessToken();
+                        promptLogin(error.message || "下载功能需要登录，现在去登录？");
+                        return;
+                    }
+                    window.alert((error && error.message) || "下载失败，请稍后重试。");
+                });
         });
     }
 

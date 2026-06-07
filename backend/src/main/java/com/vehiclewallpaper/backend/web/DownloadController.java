@@ -10,7 +10,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
+import com.vehiclewallpaper.backend.user.UserAuthenticationService;
+import com.vehiclewallpaper.backend.user.UserUnauthorizedException;
 
+import javax.servlet.http.HttpServletRequest;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,15 +21,23 @@ import java.nio.file.Paths;
 public class DownloadController {
 
     private final Path catalogRoot;
+    private final UserAuthenticationService userAuthenticationService;
 
-    public DownloadController(com.vehiclewallpaper.backend.config.CatalogProperties catalogProperties) {
+    public DownloadController(com.vehiclewallpaper.backend.config.CatalogProperties catalogProperties,
+                              UserAuthenticationService userAuthenticationService) {
         this.catalogRoot = Paths.get(catalogProperties.getRootPath()).toAbsolutePath().normalize();
+        this.userAuthenticationService = userAuthenticationService;
     }
 
     @GetMapping("/download/{brand}/{filename}")
     @ResponseBody
     public ResponseEntity<Resource> download(@PathVariable String brand,
-                                             @PathVariable String filename) {
+                                             @PathVariable String filename,
+                                             HttpServletRequest request) {
+        if (userAuthenticationService.authenticateOptional(request) == null) {
+            throw new UserUnauthorizedException("下载功能需要登录。");
+        }
+
         Path filePath = catalogRoot.resolve(brand).resolve(filename).normalize();
 
         // 防路径穿越
