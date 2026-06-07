@@ -70,6 +70,7 @@ test.describe('用户注册/登录/收藏/下载/登出 完整链路', () => {
 
     const downloadBtn = page.locator('#downloadBtn');
     await expect(downloadBtn).toBeVisible();
+    await expect(downloadBtn).toHaveAttribute('href', /\/download\//);
 
     // 关闭模态框
     await page.locator('.close').click();

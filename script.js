@@ -282,6 +282,40 @@
         return buildApiUrl("/" + normalizedPath);
     }
 
+    function buildWallpaperDownloadUrl(path) {
+        const normalizedPath = normalizeValue(path);
+        if (!normalizedPath) {
+            return "";
+        }
+
+        if (/^https?:\/\//i.test(normalizedPath)) {
+            try {
+                const parsedUrl = new URL(normalizedPath);
+                if (parsedUrl.pathname.indexOf("/download/") === 0) {
+                    return parsedUrl.toString();
+                }
+                if (parsedUrl.pathname.indexOf("/cars/") === 0) {
+                    parsedUrl.pathname = "/download" + parsedUrl.pathname.substring(5);
+                }
+                return parsedUrl.toString();
+            } catch (error) {
+                return normalizedPath;
+            }
+        }
+
+        if (normalizedPath.indexOf("/download/") === 0) {
+            return buildApiUrl(normalizedPath);
+        }
+        if (normalizedPath.indexOf("/cars/") === 0) {
+            return buildApiUrl("/download" + normalizedPath.substring(5));
+        }
+        if (normalizedPath.indexOf("cars/") === 0) {
+            return buildApiUrl("/download/" + normalizedPath.substring(5));
+        }
+
+        return buildApiUrl(normalizedPath.charAt(0) === "/" ? normalizedPath : "/" + normalizedPath);
+    }
+
     function isMobileViewport() {
         return window.matchMedia("(max-width: 768px)").matches;
     }
@@ -681,14 +715,8 @@
         modalHires.src = "";
 
         modalPlaceholder.src = previewSrc;
-        // 下载链接：走 /download 端点，强制 Content-Disposition: attachment
-        var downloadUrl = fullSrc;
-        if (downloadUrl.indexOf("/cars/") === 0) {
-            downloadUrl = "/download" + downloadUrl.substring(5);
-        } else if (downloadUrl.indexOf("cars/") === 0) {
-            downloadUrl = "/download/" + downloadUrl.substring(5);
-        }
-        downloadBtn.href = downloadUrl;
+        // 下载链接统一走 /download 端点，避免完整图片地址在跨域场景下变成直接预览
+        downloadBtn.href = buildWallpaperDownloadUrl(fullSrc);
         const downloadFileName = decodeURIComponent((fullSrc.split("/").pop() || "wallpaper"));
         downloadBtn.setAttribute("download", downloadFileName);
         downloadBtn.dataset.wallpaperId = wallpaperData.wallpaperId || "";
