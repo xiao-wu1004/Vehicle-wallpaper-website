@@ -581,8 +581,17 @@
 
         button.disabled = Boolean(isBusy);
         if (isBusy) {
+            if (!button.dataset.idleLabel) {
+                button.dataset.idleLabel = button.textContent;
+            }
+            if (button.classList.contains("form-submit")) {
+                button.textContent = button.dataset.busyLabel || "处理中...";
+            }
             button.setAttribute("aria-busy", "true");
         } else {
+            if (button.dataset.idleLabel) {
+                button.textContent = button.dataset.idleLabel;
+            }
             button.removeAttribute("aria-busy");
         }
     }
