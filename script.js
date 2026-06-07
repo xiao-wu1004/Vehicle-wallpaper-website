@@ -81,6 +81,7 @@
     let currentModalWallpaper = null;
     let currentAuthMode = "login";
     let profileRefreshTimer = 0;
+    let authRefreshTimer = 0;
     const initialGalleryBrandSectionMarkup = gallerySection
         ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
             return section.outerHTML;
@@ -230,6 +231,10 @@
     }
 
     function clearAccessToken() {
+        if (authRefreshTimer) {
+            window.clearTimeout(authRefreshTimer);
+            authRefreshTimer = 0;
+        }
         authState.currentUser = null;
         rememberAccessToken("");
     }
@@ -1691,6 +1696,22 @@
         };
     }
 
+    function scheduleAuthenticatedRefresh() {
+        if (authRefreshTimer) {
+            window.clearTimeout(authRefreshTimer);
+        }
+
+        authRefreshTimer = window.setTimeout(function () {
+            authRefreshTimer = 0;
+            if (!authState.accessToken) {
+                return;
+            }
+
+            loadCatalog();
+            loadProfile();
+        }, 24);
+    }
+
     async function syncAuthStatus() {
         restoreAccessToken();
 
@@ -1740,7 +1761,7 @@
         }
     }
 
-    async function handleAuthSuccess(payload, shouldPersist) {
+    function handleAuthSuccess(payload, shouldPersist) {
         rememberAccessToken(payload.accessToken, shouldPersist);
         authState.currentUser = {
             displayName: displayText(payload.displayName, ""),
@@ -1759,8 +1780,7 @@
         }
 
         switchAuthMode("login", { clearStatus: false });
-
-        await Promise.all([loadCatalog(), loadProfile()]);
+        scheduleAuthenticatedRefresh();
     }
 
     function promptLogin(message) {
@@ -2336,8 +2356,8 @@
                     })
                 });
 
-                setFormStatus(enhancedLoginStatus, "登录成功，正在同步你的收藏。", "success");
-                await handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
+                setFormStatus(enhancedLoginStatus, "登录成功，正在进入个人中心。", "success");
+                handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
             } catch (error) {
                 applyAuthFieldErrors(error.fieldErrors, enhancedLoginFieldMap);
                 if (!error.fieldErrors) {
@@ -2410,8 +2430,8 @@
                     })
                 });
 
-                setFormStatus(enhancedRegisterStatus, "注册成功，正在为你创建个人中心。", "success");
-                await handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
+                setFormStatus(enhancedRegisterStatus, "注册成功，正在进入个人中心。", "success");
+                handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
             } catch (error) {
                 applyAuthFieldErrors(error.fieldErrors, enhancedRegisterFieldMap);
                 if (!error.fieldErrors && /already registered|already exists/i.test(normalizeValue(error.message))) {
@@ -2477,8 +2497,8 @@
                     })
                 });
 
-                setFormStatus(loginStatus, "登录成功，正在同步你的收藏。", "success");
-                await handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
+                setFormStatus(loginStatus, "登录成功，正在进入个人中心。", "success");
+                handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
             } catch (error) {
                 applyAuthFieldErrors(error.fieldErrors, loginFieldMap);
                 if (!error.fieldErrors) {
@@ -2569,8 +2589,8 @@
                     })
                 });
 
-                setFormStatus(registerStatus, "注册成功，正在为你创建个人中心。", "success");
-                await handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
+                setFormStatus(registerStatus, "注册成功，正在进入个人中心。", "success");
+                handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
             } catch (error) {
                 applyAuthFieldErrors(error.fieldErrors, registerFieldMap);
                 if (!error.fieldErrors && /already registered|already exists/i.test(normalizeValue(error.message))) {
