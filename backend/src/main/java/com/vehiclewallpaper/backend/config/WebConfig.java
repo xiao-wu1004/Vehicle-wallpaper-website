@@ -3,8 +3,10 @@ package com.vehiclewallpaper.backend.config;
 import com.vehiclewallpaper.backend.admin.AdminApiKeyInterceptor;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -49,12 +51,25 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String frontendLocation = toResourceLocation(frontendProperties.getRootPath());
         String catalogLocation = toResourceLocation(catalogProperties.getRootPath());
+        CacheControl htmlCacheControl = CacheControl.noStore();
+        CacheControl immutableAssetCacheControl = CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic();
+        CacheControl metadataCacheControl = CacheControl.noCache();
 
-        registry.addResourceHandler("/*.html", "/*.css", "/*.js", "/*.txt", "/*.xml")
-            .addResourceLocations(frontendLocation);
+        registry.addResourceHandler("/*.html")
+            .addResourceLocations(frontendLocation)
+            .setCacheControl(htmlCacheControl);
+
+        registry.addResourceHandler("/*.css", "/*.js")
+            .addResourceLocations(frontendLocation)
+            .setCacheControl(immutableAssetCacheControl);
+
+        registry.addResourceHandler("/*.txt", "/*.xml")
+            .addResourceLocations(frontendLocation)
+            .setCacheControl(metadataCacheControl);
 
         registry.addResourceHandler("/cars/**")
-            .addResourceLocations(catalogLocation);
+            .addResourceLocations(catalogLocation)
+            .setCacheControl(immutableAssetCacheControl);
     }
 
     private String toResourceLocation(String rootPath) {

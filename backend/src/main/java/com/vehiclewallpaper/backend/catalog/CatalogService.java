@@ -59,6 +59,7 @@ public class CatalogService {
     private final WallpaperRepository wallpaperRepository;
     private final WallpaperFavoriteRepository wallpaperFavoriteRepository;
     private final WallpaperDownloadEventRepository wallpaperDownloadEventRepository;
+    private final WallpaperMetricRepository wallpaperMetricRepository;
     private final TransactionTemplate transactionTemplate;
 
     private volatile CatalogOverviewResponse cachedNeutralOverview;
@@ -69,22 +70,50 @@ public class CatalogService {
                           WallpaperRepository wallpaperRepository,
                           WallpaperFavoriteRepository wallpaperFavoriteRepository,
                           WallpaperDownloadEventRepository wallpaperDownloadEventRepository,
+                          WallpaperMetricRepository wallpaperMetricRepository,
                           PlatformTransactionManager transactionManager) {
         this.catalogProperties = catalogProperties;
         this.brandRepository = brandRepository;
         this.wallpaperRepository = wallpaperRepository;
         this.wallpaperFavoriteRepository = wallpaperFavoriteRepository;
         this.wallpaperDownloadEventRepository = wallpaperDownloadEventRepository;
+        this.wallpaperMetricRepository = wallpaperMetricRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
     public void warmUp() {
-        refreshCatalog();
+        if (catalogProperties.isSyncOnStartup()) {
+            refreshCatalog();
+        }
     }
 
     public CatalogOverviewResponse getOverview() {
         return getOverview(null);
+    }
+
+    @Transactional(readOnly = true)
+    public CatalogSummaryResponse getSummary(String visitorKey) {
+        CatalogOverviewResponse overview = getOverview(visitorKey);
+        List<CatalogSummaryBrandResponse> brands = new ArrayList<CatalogSummaryBrandResponse>();
+        for (BrandCatalogResponse brand : overview.getBrands()) {
+            brands.add(new CatalogSummaryBrandResponse(
+                brand.getSlug(),
+                brand.getDisplayName(),
+                brand.getWallpaperCount(),
+                brand.getCoverImageUrl()
+            ));
+        }
+
+        return new CatalogSummaryResponse(
+            overview.getGeneratedAt(),
+            overview.getTotalBrands(),
+            overview.getTotalWallpapers(),
+            overview.getTotalFavorites(),
+            overview.getTotalDownloads(),
+            brands,
+            overview.getTrendingWallpapers()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -199,12 +228,9 @@ public class CatalogService {
         List<WallpaperDownloadEventEntity> downloadEntities = collectRecentDownloadEntities(normalizedVisitorKey, downloadLimit);
 
         List<Long> profileWallpaperIds = collectProfileWallpaperIds(favoriteEntities, downloadEntities);
-        Map<Long, Long> favoriteCounts = profileWallpaperIds.isEmpty()
-            ? Collections.<Long, Long>emptyMap()
-            : aggregateCounts(wallpaperFavoriteRepository.countByWallpaperIds(profileWallpaperIds));
-        Map<Long, Long> downloadCounts = profileWallpaperIds.isEmpty()
-            ? Collections.<Long, Long>emptyMap()
-            : aggregateCounts(wallpaperDownloadEventRepository.countByWallpaperIds(profileWallpaperIds));
+        Map<Long, WallpaperMetricEntity> metricsByWallpaperId = profileWallpaperIds.isEmpty()
+            ? Collections.<Long, WallpaperMetricEntity>emptyMap()
+            : indexWallpaperMetrics(wallpaperMetricRepository.findAllByWallpaperIdIn(profileWallpaperIds));
 
         Set<Long> favoritedWallpaperIds = new LinkedHashSet<Long>();
         for (WallpaperFavoriteEntity favoriteEntity : favoriteEntities) {
@@ -220,8 +246,7 @@ public class CatalogService {
         for (WallpaperFavoriteEntity favoriteEntity : favoriteEntities) {
             favorites.add(toProfileWallpaperResponse(
                 favoriteEntity.getWallpaper(),
-                favoriteCounts,
-                downloadCounts,
+                metricsByWallpaperId,
                 true
             ));
         }
@@ -231,8 +256,7 @@ public class CatalogService {
             WallpaperEntity wallpaper = downloadEntity.getWallpaper();
             recentDownloads.add(toProfileWallpaperResponse(
                 wallpaper,
-                favoriteCounts,
-                downloadCounts,
+                metricsByWallpaperId,
                 favoritedWallpaperIds.contains(wallpaper.getId())
             ));
         }
@@ -259,6 +283,7 @@ public class CatalogService {
             favorite.setWallpaper(wallpaper);
             favorite.setVisitorKey(normalizedVisitorKey);
             wallpaperFavoriteRepository.save(favorite);
+            adjustFavoriteMetric(wallpaper, 1L);
         }
 
         invalidateMetricsOverview();
@@ -270,7 +295,9 @@ public class CatalogService {
         WallpaperEntity wallpaper = requireWallpaperBySlug(wallpaperSlug);
         String normalizedVisitorKey = requireVisitorKey(visitorKey);
 
-        wallpaperFavoriteRepository.deleteByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId());
+        if (wallpaperFavoriteRepository.deleteByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId()) > 0) {
+            adjustFavoriteMetric(wallpaper, -1L);
+        }
 
         invalidateMetricsOverview();
         return buildInteractionResponse(wallpaper, false);
@@ -285,6 +312,7 @@ public class CatalogService {
         downloadEvent.setWallpaper(wallpaper);
         downloadEvent.setVisitorKey(normalizedVisitorKey);
         wallpaperDownloadEventRepository.save(downloadEvent);
+        adjustDownloadMetric(wallpaper, 1L);
 
         invalidateMetricsOverview();
         boolean favorited = wallpaperFavoriteRepository.existsByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId());
@@ -292,9 +320,7 @@ public class CatalogService {
     }
 
     public synchronized CatalogOverviewResponse refreshCatalog() {
-        if (catalogProperties.isSyncOnStartup()) {
-            transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
-        }
+        transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
 
         cachedNeutralOverview = buildNeutralOverview();
         CatalogOverviewResponse neutralOverview = cachedNeutralOverview;
@@ -513,11 +539,11 @@ public class CatalogService {
     }
 
     private WallpaperResponse toProfileWallpaperResponse(WallpaperEntity wallpaper,
-                                                         Map<Long, Long> favoriteCounts,
-                                                         Map<Long, Long> downloadCounts,
+                                                         Map<Long, WallpaperMetricEntity> metricsByWallpaperId,
                                                          boolean favorited) {
-        long favoriteCount = favoriteCounts.containsKey(wallpaper.getId()) ? favoriteCounts.get(wallpaper.getId()) : 0L;
-        long downloadCount = downloadCounts.containsKey(wallpaper.getId()) ? downloadCounts.get(wallpaper.getId()) : 0L;
+        WallpaperMetricEntity metric = metricsByWallpaperId.get(wallpaper.getId());
+        long favoriteCount = metric == null ? 0L : metric.getFavoriteCount();
+        long downloadCount = metric == null ? 0L : metric.getDownloadCount();
         return new WallpaperResponse(
             wallpaper.getSlug(),
             wallpaper.getId(),
@@ -544,31 +570,29 @@ public class CatalogService {
             }
         }
 
-        Map<Long, Long> favoriteCounts = wallpaperIds.isEmpty()
-            ? Collections.<Long, Long>emptyMap()
-            : aggregateCounts(wallpaperFavoriteRepository.countByWallpaperIds(wallpaperIds));
-        Map<Long, Long> downloadCounts = wallpaperIds.isEmpty()
-            ? Collections.<Long, Long>emptyMap()
-            : aggregateCounts(wallpaperDownloadEventRepository.countByWallpaperIds(wallpaperIds));
+        if (wallpaperIds.isEmpty()) {
+            return new CatalogMetricsSnapshot(0L, 0L, Collections.<Long, Long>emptyMap(), Collections.<Long, Long>emptyMap(), Collections.<Long>emptySet());
+        }
+
+        Map<Long, Long> favoriteCounts = new LinkedHashMap<Long, Long>();
+        Map<Long, Long> downloadCounts = new LinkedHashMap<Long, Long>();
+        long totalFavorites = 0L;
+        long totalDownloads = 0L;
+
+        for (WallpaperMetricEntity metric : wallpaperMetricRepository.findAllByWallpaperIdIn(wallpaperIds)) {
+            favoriteCounts.put(metric.getWallpaperId(), metric.getFavoriteCount());
+            downloadCounts.put(metric.getWallpaperId(), metric.getDownloadCount());
+            totalFavorites += metric.getFavoriteCount();
+            totalDownloads += metric.getDownloadCount();
+        }
 
         return new CatalogMetricsSnapshot(
-            wallpaperFavoriteRepository.count(),
-            wallpaperDownloadEventRepository.count(),
+            totalFavorites,
+            totalDownloads,
             favoriteCounts,
             downloadCounts,
             Collections.<Long>emptySet()
         );
-    }
-
-    private Map<Long, Long> aggregateCounts(List<Object[]> rows) {
-        Map<Long, Long> counts = new LinkedHashMap<Long, Long>();
-        for (Object[] row : rows) {
-            if (row == null || row.length < 2) {
-                continue;
-            }
-            counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
-        }
-        return counts;
     }
 
     private void sortWallpapers(List<WallpaperResponse> wallpapers, String sort) {
@@ -667,16 +691,9 @@ public class CatalogService {
 
     private WallpaperInteractionResponse buildInteractionResponse(WallpaperEntity wallpaper,
                                                                   boolean favorited) {
-        long favoriteCount = wallpaperFavoriteRepository.countByWallpaperIds(Collections.singletonList(wallpaper.getId()))
-            .stream()
-            .findFirst()
-            .map(row -> ((Number) row[1]).longValue())
-            .orElse(0L);
-        long downloadCount = wallpaperDownloadEventRepository.countByWallpaperIds(Collections.singletonList(wallpaper.getId()))
-            .stream()
-            .findFirst()
-            .map(row -> ((Number) row[1]).longValue())
-            .orElse(0L);
+        WallpaperMetricEntity metric = ensureWallpaperMetric(wallpaper);
+        long favoriteCount = metric.getFavoriteCount();
+        long downloadCount = metric.getDownloadCount();
 
         return new WallpaperInteractionResponse(
             wallpaper.getSlug(),
@@ -746,6 +763,35 @@ public class CatalogService {
 
     private boolean containsIgnoreCase(String value, String query) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(query);
+    }
+
+    private Map<Long, WallpaperMetricEntity> indexWallpaperMetrics(List<WallpaperMetricEntity> metrics) {
+        Map<Long, WallpaperMetricEntity> metricsByWallpaperId = new LinkedHashMap<Long, WallpaperMetricEntity>();
+        for (WallpaperMetricEntity metric : metrics) {
+            metricsByWallpaperId.put(metric.getWallpaperId(), metric);
+        }
+        return metricsByWallpaperId;
+    }
+
+    private WallpaperMetricEntity ensureWallpaperMetric(WallpaperEntity wallpaper) {
+        return wallpaperMetricRepository.findByWallpaperId(wallpaper.getId())
+            .orElseGet(() -> {
+                WallpaperMetricEntity metric = new WallpaperMetricEntity();
+                metric.setWallpaper(wallpaper);
+                metric.setFavoriteCount(0L);
+                metric.setDownloadCount(0L);
+                return wallpaperMetricRepository.save(metric);
+            });
+    }
+
+    private void adjustFavoriteMetric(WallpaperEntity wallpaper, long delta) {
+        ensureWallpaperMetric(wallpaper);
+        wallpaperMetricRepository.adjustFavoriteCount(wallpaper.getId(), delta, LocalDateTime.now());
+    }
+
+    private void adjustDownloadMetric(WallpaperEntity wallpaper, long delta) {
+        ensureWallpaperMetric(wallpaper);
+        wallpaperMetricRepository.adjustDownloadCount(wallpaper.getId(), delta, LocalDateTime.now());
     }
 
     private void invalidateMetricsOverview() {
@@ -833,7 +879,8 @@ public class CatalogService {
                 wallpaper.setSortOrder(nextSortOrder++);
             }
 
-            wallpaperRepository.save(wallpaper);
+            wallpaper = wallpaperRepository.save(wallpaper);
+            ensureWallpaperMetric(wallpaper);
         }
 
         for (WallpaperEntity removedWallpaper : existingFilesystemWallpapers.values()) {
@@ -848,6 +895,7 @@ public class CatalogService {
     }
 
     private void deleteUserEngagementForWallpaper(Long wallpaperId) {
+        wallpaperMetricRepository.deleteByWallpaperId(wallpaperId);
         wallpaperFavoriteRepository.deleteByWallpaperId(wallpaperId);
         wallpaperDownloadEventRepository.deleteByWallpaperId(wallpaperId);
     }

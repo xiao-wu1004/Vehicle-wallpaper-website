@@ -31,6 +31,7 @@
     const registerPasswordInput = document.getElementById("registerPassword");
     const rememberLoginCheckbox = document.getElementById("rememberLoginCheckbox");
     const rememberRegisterCheckbox = document.getElementById("rememberRegisterCheckbox");
+    const accountSection = document.getElementById("account");
     const authTabButtons = Array.prototype.slice.call(document.querySelectorAll("[data-auth-tab]"));
     const authSwitchButtons = Array.prototype.slice.call(document.querySelectorAll("[data-auth-switch]"));
     const passwordToggleButtons = Array.prototype.slice.call(document.querySelectorAll("[data-password-target]"));
@@ -44,6 +45,7 @@
     const accountDownloadCount = document.getElementById("accountDownloadCount");
     const accountFavoritesList = document.getElementById("accountFavoritesList");
     const accountDownloadsList = document.getElementById("accountDownloadsList");
+    const feedbackSection = document.getElementById("feedback");
     const defaultApiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
     const utf8Decoder = typeof TextDecoder === "function" ? new TextDecoder("utf-8", { fatal: true }) : null;
     const brandNameFallbacks = {
@@ -71,6 +73,11 @@
         currentUser: null,
         profile: null
     };
+    const deferredLoadState = {
+        accountSeen: false,
+        feedbackSeen: false,
+        feedbackLoaded: false
+    };
 
     let dynamicBrandHashes = new Set(["#brands"]);
     let modalScale = 1;
@@ -82,6 +89,8 @@
     let currentAuthMode = "login";
     let profileRefreshTimer = 0;
     let authRefreshTimer = 0;
+    let profileRequestPromise = null;
+    let feedbackHighlightsRequestPromise = null;
     const initialGalleryBrandSectionMarkup = gallerySection
         ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
             return section.outerHTML;
@@ -385,6 +394,66 @@
         } else if (tone === "loading") {
             element.classList.add("is-loading");
         }
+    }
+
+    function isElementInViewport(element) {
+        if (!element) {
+            return false;
+        }
+
+        const bounds = element.getBoundingClientRect();
+        return bounds.bottom > 0 && bounds.top < window.innerHeight;
+    }
+
+    function observeSectionOnce(element, onEnter) {
+        if (!element || typeof onEnter !== "function") {
+            return;
+        }
+
+        if (typeof IntersectionObserver !== "function") {
+            window.setTimeout(onEnter, 0);
+            return;
+        }
+
+        const observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                observer.unobserve(entry.target);
+                onEnter();
+            });
+        }, {
+            rootMargin: "120px 0px"
+        });
+
+        observer.observe(element);
+    }
+
+    function requestVisibleProfileIfNeeded() {
+        if (!authState.accessToken) {
+            return Promise.resolve(null);
+        }
+
+        if (!deferredLoadState.accountSeen && !isElementInViewport(accountSection)) {
+            return Promise.resolve(null);
+        }
+
+        deferredLoadState.accountSeen = true;
+        return loadProfile();
+    }
+
+    function initializeDeferredSectionLoading() {
+        observeSectionOnce(accountSection, function () {
+            deferredLoadState.accountSeen = true;
+            requestVisibleProfileIfNeeded();
+        });
+
+        observeSectionOnce(feedbackSection, function () {
+            deferredLoadState.feedbackSeen = true;
+            loadFeedbackHighlights();
+        });
     }
 
     function addScrollLock(key) {
@@ -693,7 +762,9 @@
 
         profileRefreshTimer = window.setTimeout(function () {
             profileRefreshTimer = 0;
-            loadProfile();
+            if (deferredLoadState.accountSeen && authState.accessToken) {
+                loadProfile();
+            }
         }, 180);
     }
 
@@ -1281,12 +1352,20 @@
         });
     }
 
-    function loadFeedbackHighlights() {
+    function loadFeedbackHighlights(forceRefresh) {
         if (!feedbackBlockquote) {
-            return;
+            return Promise.resolve([]);
         }
 
-        fetch(buildApiUrl("/api/feedback/highlights"), {
+        if (!forceRefresh && deferredLoadState.feedbackLoaded) {
+            return Promise.resolve([]);
+        }
+
+        if (feedbackHighlightsRequestPromise) {
+            return feedbackHighlightsRequestPromise;
+        }
+
+        feedbackHighlightsRequestPromise = fetch(buildApiUrl("/api/feedback/highlights"), {
             headers: {
                 Accept: "application/json"
             }
@@ -1297,10 +1376,20 @@
                 }
                 return response.json();
             })
-            .then(renderFeedbackHighlights)
+            .then(function (items) {
+                deferredLoadState.feedbackLoaded = true;
+                renderFeedbackHighlights(items);
+                return items;
+            })
             .catch(function () {
                 // Keep the existing fallback quotes when the backend is unavailable.
+                return [];
+            })
+            .finally(function () {
+                feedbackHighlightsRequestPromise = null;
             });
+
+        return feedbackHighlightsRequestPromise;
     }
 
     function createBrandMenuLink(hash, label) {
@@ -1404,7 +1493,7 @@
         lastCatalogRenderMode = "static";
     }
 
-    function renderGalleryLoginGate(brandCount) {
+    function renderGalleryLoginGate(overview, brands) {
         if (!gallerySection) {
             return;
         }
@@ -1412,23 +1501,56 @@
         clearDynamicCatalogSections();
         removeGalleryLoginGate();
 
-        // 绉婚櫎宸插瓨鍦ㄧ殑鐧诲綍闂ㄧ鍗＄墖锛堥伩鍏嶉噸澶嶏級
-        const existingGate = gallerySection.querySelector(".gallery-login-gate");
-        if (existingGate) {
-            existingGate.parentNode.removeChild(existingGate);
-        }
+        const safeOverview = overview && typeof overview === "object" ? overview : {};
+        const summaryBrands = Array.isArray(brands) ? brands : [];
+        const totalBrands = safeOverview.totalBrands || summaryBrands.length || initialGalleryBrandCount || 12;
+        const totalWallpapers = safeOverview.totalWallpapers || 0;
 
         const gate = document.createElement("div");
         gate.className = "gallery-login-gate";
-        gate.innerHTML =
-            '<div class="gallery-login-gate-card">'
-            + '<p class="gallery-login-gate-icon">🔐</p>'
-            + '<h3>登录后查看全部壁纸</h3>'
-            + '<p>我们收录了 <strong>12</strong> 个品牌的精选壁纸，注册即可浏览和下载。</p>'
-            + '<button type="button" class="form-submit gallery-login-gate-button">去登录 / 注册</button>'
-            + '</div>';
+        const gateCard = document.createElement("div");
+        gateCard.className = "gallery-login-gate-card";
 
-        gate.querySelector(".gallery-login-gate-button").addEventListener("click", function () {
+        const icon = document.createElement("p");
+        icon.className = "gallery-login-gate-icon";
+        icon.textContent = "🔐";
+
+        const title = document.createElement("h3");
+        title.textContent = "登录后查看全部壁纸";
+
+        const description = document.createElement("p");
+        description.innerHTML = "我们收录了 <strong>" + totalBrands + "</strong> 个品牌"
+            + (totalWallpapers ? "、<strong>" + totalWallpapers + "</strong> 张精选壁纸" : "")
+            + "，登录后即可浏览完整高清图库。";
+
+        gateCard.appendChild(icon);
+        gateCard.appendChild(title);
+        gateCard.appendChild(description);
+
+        if (summaryBrands.length) {
+            const summary = document.createElement("div");
+            summary.className = "gallery-login-gate-summary";
+
+            const summaryTitle = document.createElement("p");
+            summaryTitle.textContent = "品牌概览";
+            summary.appendChild(summaryTitle);
+
+            const list = document.createElement("ul");
+            summaryBrands.slice(0, 12).forEach(function (brand) {
+                const item = document.createElement("li");
+                item.textContent = resolveBrandName(brand) + " · " + (brand.wallpaperCount || 0) + " 张";
+                list.appendChild(item);
+            });
+
+            summary.appendChild(list);
+            gateCard.appendChild(summary);
+        }
+
+        const actionButton = document.createElement("button");
+        actionButton.type = "button";
+        actionButton.className = "form-submit gallery-login-gate-button";
+        actionButton.textContent = "去登录 / 注册";
+        actionButton.addEventListener("click", function () {
             const accountSection = document.getElementById("account");
             if (accountSection) {
                 accountSection.scrollIntoView({ behavior: "smooth" });
@@ -1440,15 +1562,19 @@
             }
         });
 
+        gateCard.appendChild(actionButton);
+        gate.appendChild(gateCard);
         gallerySection.appendChild(gate);
         lastCatalogRenderMode = "gate";
     }
 
-    function renderBrandNavigation(brands) {
+    function renderBrandNavigation(brands, useBrandAnchors) {
+        const enableBrandAnchors = useBrandAnchors !== false;
+
         if (brandSubmenu) {
             brandSubmenu.innerHTML = "";
             brands.forEach(function (brand) {
-                const hash = "#" + brand.slug;
+                const hash = enableBrandAnchors ? "#" + brand.slug : "#brands";
                 brandSubmenu.appendChild(createBrandMenuLink(hash, resolveBrandName(brand)));
             });
         }
@@ -1457,7 +1583,7 @@
             brandChipList.innerHTML = "";
             brands.forEach(function (brand) {
                 const listItem = document.createElement("li");
-                listItem.appendChild(createBrandMenuLink("#" + brand.slug, resolveBrandName(brand)));
+                listItem.appendChild(createBrandMenuLink(enableBrandAnchors ? "#" + brand.slug : "#brands", resolveBrandName(brand)));
                 brandChipList.appendChild(listItem);
             });
         }
@@ -1502,9 +1628,36 @@
         lastCatalogRenderMode = "catalog";
     }
 
-    function buildCarouselCandidates(brands) {
+    function buildCarouselCandidates(brands, trendingWallpapers) {
         const highlights = [];
         const seenIds = Object.create(null);
+        const brandsBySlug = Object.create(null);
+
+        brands.forEach(function (brand) {
+            brandsBySlug[normalizeValue(brand.slug)] = brand;
+        });
+
+        if (Array.isArray(trendingWallpapers) && trendingWallpapers.length > 0) {
+            trendingWallpapers.slice(0, 10).forEach(function (wallpaper) {
+                const key = normalizeValue(wallpaper && (wallpaper.id || wallpaper.fullUrl || wallpaper.previewUrl));
+                if (!key || seenIds[key]) {
+                    return;
+                }
+
+                seenIds[key] = true;
+                highlights.push({
+                    brand: brandsBySlug[normalizeValue(wallpaper.brandSlug)] || {
+                        slug: normalizeValue(wallpaper.brandSlug),
+                        displayName: brandNameFallbacks[normalizeValue(wallpaper.brandSlug).toLowerCase()] || normalizeValue(wallpaper.brandSlug)
+                    },
+                    wallpaper: wallpaper
+                });
+            });
+        }
+
+        if (highlights.length > 0) {
+            return highlights;
+        }
 
         brands.forEach(function (brand) {
             if (Array.isArray(brand.wallpapers) && brand.wallpapers.length > 0) {
@@ -1543,7 +1696,7 @@
         return highlights.slice(0, 10);
     }
 
-    function renderCarousel(brands) {
+    function renderCarousel(brands, trendingWallpapers) {
         if (!carouselContainer) {
             return;
         }
@@ -1553,7 +1706,7 @@
             image.parentNode.removeChild(image);
         });
 
-        const highlights = buildCarouselCandidates(brands);
+        const highlights = buildCarouselCandidates(brands, trendingWallpapers);
         if (!highlights.length) {
             return;
         }
@@ -1720,7 +1873,7 @@
             }
 
             loadCatalog();
-            loadProfile();
+            requestVisibleProfileIfNeeded();
         }, 24);
     }
 
@@ -1750,27 +1903,44 @@
 
     async function loadProfile() {
         if (!accountFavoriteCount || !accountDownloadCount) {
-            return;
+            return null;
         }
 
-        try {
-            const profile = await requestJson("/api/catalog/me");
-            syncAccountUi(profile);
-        } catch (error) {
-            if (authState.accessToken && authState.currentUser) {
-                syncAccountUi(buildAuthenticatedProfileFallback());
+        if (!authState.accessToken) {
+            syncAccountUi(null);
+            return null;
+        }
+
+        if (profileRequestPromise) {
+            return profileRequestPromise;
+        }
+
+        profileRequestPromise = requestJson("/api/catalog/me")
+            .then(function (profile) {
+                syncAccountUi(profile);
+                return profile;
+            })
+            .catch(function (error) {
+                if (authState.accessToken && authState.currentUser) {
+                    syncAccountUi(buildAuthenticatedProfileFallback());
+                    if (accountStatusCopy) {
+                        accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
+                    }
+                    return authState.profile;
+                }
+
                 if (accountStatusCopy) {
                     accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
                 }
-                return;
-            }
+                renderProfileList(accountFavoritesList, [], "个人中心暂时不可用。");
+                renderProfileList(accountDownloadsList, [], "个人中心暂时不可用。");
+                throw error;
+            })
+            .finally(function () {
+                profileRequestPromise = null;
+            });
 
-            if (accountStatusCopy) {
-                accountStatusCopy.textContent = "个人中心暂时不可用，请稍后刷新重试。";
-            }
-            renderProfileList(accountFavoritesList, [], "个人中心暂时不可用。");
-            renderProfileList(accountDownloadsList, [], "个人中心暂时不可用。");
-        }
+        return profileRequestPromise;
     }
 
     function handleAuthSuccess(payload, shouldPersist) {
@@ -1793,6 +1963,7 @@
 
         switchAuthMode("login", { clearStatus: false });
         scheduleAuthenticatedRefresh();
+        requestVisibleProfileIfNeeded();
     }
 
     function promptLogin(message) {
@@ -1870,7 +2041,9 @@
             await requestJson("/api/catalog/wallpapers/" + encodeURIComponent(normalizedWallpaperId) + "/downloads", {
                 method: "POST"
             });
-            loadProfile();
+            if (deferredLoadState.accountSeen) {
+                loadProfile();
+            }
         } catch (error) {
             // Downloads should still continue even if analytics tracking fails.
         }
@@ -1878,8 +2051,17 @@
 
     async function initializeAccountExperience() {
         ensureVisitorKey();
+        initializeDeferredSectionLoading();
         await syncAuthStatus();
-        await Promise.all([loadCatalog(), loadProfile()]);
+
+        if (authState.accessToken && authState.currentUser) {
+            syncAccountUi(buildAuthenticatedProfileFallback());
+        } else {
+            syncAccountUi(null);
+        }
+
+        await loadCatalog();
+        await requestVisibleProfileIfNeeded();
     }
 
     function renderCatalog(overview) {
@@ -1898,22 +2080,27 @@
                 return Boolean(brand.slug);
             })
             : [];
+        const trendingWallpapers = Array.isArray(overview && overview.trendingWallpapers)
+            ? overview.trendingWallpapers
+            : [];
+        const authenticated = Boolean(authState.accessToken);
 
         dynamicBrandHashes = new Set(["#brands"]);
-        brands.forEach(function (brand) {
-            dynamicBrandHashes.add("#" + brand.slug);
-        });
+        if (authenticated) {
+            brands.forEach(function (brand) {
+                dynamicBrandHashes.add("#" + brand.slug);
+            });
+        }
 
-        renderBrandNavigation(brands);
+        renderBrandNavigation(brands, authenticated);
 
-        // 未登录时只显示轮播图，画廊区替换为登录引导。
-        if (!authState.accessToken) {
-            renderGalleryLoginGate(brands.length);
+        if (!authenticated) {
+            renderGalleryLoginGate(overview, brands);
         } else {
             renderBrandSections(brands);
         }
 
-        renderCarousel(brands);
+        renderCarousel(brands, trendingWallpapers);
         setCatalogStatus("", "");
         highlightCurrentNav();
         updateBackToHomeButton();
@@ -1930,17 +2117,20 @@
             return Promise.resolve();
         }
 
-        setCatalogStatus("正在从后端加载最新壁纸库…", "loading");
+        const authenticated = Boolean(authState.accessToken);
+        const endpoint = authenticated ? "/api/catalog" : "/api/catalog/summary";
+        setCatalogStatus(authenticated ? "正在从后端加载最新壁纸库…" : "正在加载首页摘要…", "loading");
 
-        return requestJson("/api/catalog")
+        return requestJson(endpoint)
             .then(renderCatalog)
             .catch(function () {
-                if (authState.accessToken) {
+                if (authenticated) {
                     restoreStaticCatalogSections();
-                } else if (lastCatalogRenderMode === "catalog" || lastCatalogRenderMode === "gate") {
-                    renderGalleryLoginGate(initialGalleryBrandCount || 12);
                 } else {
-                    restoreStaticCatalogSections();
+                    renderGalleryLoginGate({
+                        totalBrands: initialGalleryBrandCount || 12,
+                        totalWallpapers: 0
+                    }, []);
                 }
                 setCatalogStatus("暂时无法从后端加载最新图床，当前显示静态备用内容。", "error");
                 highlightCurrentNav();
@@ -2215,7 +2405,9 @@
                     result.message || "反馈已提交，感谢你的建议。",
                     "success"
                 );
-                loadFeedbackHighlights();
+                if (deferredLoadState.feedbackSeen || deferredLoadState.feedbackLoaded) {
+                    loadFeedbackHighlights(true);
+                }
             } catch (error) {
                 setFormStatus(
                     formStatus,
@@ -2628,7 +2820,8 @@
                 clearAccessToken();
                 resetPasswordVisibility();
                 switchAuthMode("login", { clearStatus: false, focus: false });
-                await Promise.all([loadCatalog(), loadProfile()]);
+                syncAccountUi(null);
+                await loadCatalog();
                 setButtonBusy(logoutButton, false);
             }
         });
@@ -2658,7 +2851,6 @@
     }
     updateBackToHomeButton();
     syncAccountUi(null);
-    loadFeedbackHighlights();
     initializeAccountExperience();
 
     window.addEventListener("hashchange", function () {

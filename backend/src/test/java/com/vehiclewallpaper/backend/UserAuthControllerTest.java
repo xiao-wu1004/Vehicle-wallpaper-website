@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -68,27 +70,43 @@ class UserAuthControllerTest {
             .andReturn();
 
         JsonNode overviewJson = objectMapper.readTree(overview.getResponse().getContentAsString());
-        String wallpaperSlug = overviewJson.get("brands").get(0).get("wallpapers").get(0).get("id").asText();
+        JsonNode initialWallpaper = overviewJson.get("brands").get(0).get("wallpapers").get(0);
+        String wallpaperSlug = initialWallpaper.get("id").asText();
+        int initialFavoriteCount = initialWallpaper.get("favoriteCount").asInt();
+        int initialDownloadCount = initialWallpaper.get("downloadCount").asInt();
 
         mockMvc.perform(post("/api/catalog/wallpapers/{wallpaperSlug}/favorite", wallpaperSlug)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.wallpaperId").value(wallpaperSlug))
             .andExpect(jsonPath("$.favorited").value(true))
-            .andExpect(jsonPath("$.favoriteCount").isNumber());
+            .andExpect(jsonPath("$.favoriteCount").value(initialFavoriteCount + 1));
 
         mockMvc.perform(post("/api/catalog/wallpapers/{wallpaperSlug}/downloads", wallpaperSlug)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.downloadCount").isNumber());
+            .andExpect(jsonPath("$.downloadCount").value(initialDownloadCount + 1));
 
         mockMvc.perform(get("/api/catalog")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.brands[0].wallpapers[0].id").value(wallpaperSlug))
             .andExpect(jsonPath("$.brands[0].wallpapers[0].favorited").value(true))
-            .andExpect(jsonPath("$.brands[0].wallpapers[0].favoriteCount").isNumber())
-            .andExpect(jsonPath("$.brands[0].wallpapers[0].downloadCount").isNumber());
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favoriteCount").value(initialFavoriteCount + 1))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].downloadCount").value(initialDownloadCount + 1));
+
+        JsonNode summaryJson = objectMapper.readTree(mockMvc.perform(get("/api/catalog/summary")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
+
+        JsonNode summaryWallpaper = findWallpaperById(summaryJson.get("trendingWallpapers"), wallpaperSlug);
+        assertNotNull(summaryWallpaper);
+        assertEquals(true, summaryWallpaper.get("favorited").asBoolean());
+        assertEquals(initialFavoriteCount + 1, summaryWallpaper.get("favoriteCount").asInt());
+        assertEquals(initialDownloadCount + 1, summaryWallpaper.get("downloadCount").asInt());
 
         mockMvc.perform(get("/api/catalog/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -124,5 +142,18 @@ class UserAuthControllerTest {
 
         JsonNode payload = objectMapper.readTree(responseBody);
         return payload.get("accessToken").asText();
+    }
+
+    private JsonNode findWallpaperById(JsonNode wallpapers, String wallpaperId) {
+        if (wallpapers == null || !wallpapers.isArray()) {
+            return null;
+        }
+
+        for (JsonNode wallpaper : wallpapers) {
+            if (wallpaperId.equals(wallpaper.path("id").asText())) {
+                return wallpaper;
+            }
+        }
+        return null;
     }
 }

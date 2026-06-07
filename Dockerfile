@@ -15,7 +15,7 @@ WORKDIR /app
 ENV APP_PROFILE=mysql
 ENV APP_FRONTEND_ROOT_PATH=/app/site
 ENV APP_CATALOG_ROOT_PATH=/app/site/cars
-ENV APP_CATALOG_SYNC_ON_STARTUP=true
+ENV APP_CATALOG_SYNC_ON_STARTUP=false
 
 COPY --from=build /workspace/backend/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar
 COPY main.html /app/site/

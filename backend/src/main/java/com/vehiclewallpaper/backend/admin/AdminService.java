@@ -7,6 +7,8 @@ import com.vehiclewallpaper.backend.catalog.CatalogService;
 import com.vehiclewallpaper.backend.catalog.WallpaperDownloadEventRepository;
 import com.vehiclewallpaper.backend.catalog.WallpaperEntity;
 import com.vehiclewallpaper.backend.catalog.WallpaperFavoriteRepository;
+import com.vehiclewallpaper.backend.catalog.WallpaperMetricEntity;
+import com.vehiclewallpaper.backend.catalog.WallpaperMetricRepository;
 import com.vehiclewallpaper.backend.catalog.WallpaperRepository;
 import com.vehiclewallpaper.backend.config.CatalogProperties;
 import com.vehiclewallpaper.backend.feedback.FeedbackMessage;
@@ -49,6 +51,7 @@ public class AdminService {
     private final WallpaperRepository wallpaperRepository;
     private final WallpaperFavoriteRepository wallpaperFavoriteRepository;
     private final WallpaperDownloadEventRepository wallpaperDownloadEventRepository;
+    private final WallpaperMetricRepository wallpaperMetricRepository;
     private final FeedbackRepository feedbackRepository;
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
@@ -61,6 +64,7 @@ public class AdminService {
                         WallpaperRepository wallpaperRepository,
                         WallpaperFavoriteRepository wallpaperFavoriteRepository,
                         WallpaperDownloadEventRepository wallpaperDownloadEventRepository,
+                        WallpaperMetricRepository wallpaperMetricRepository,
                         FeedbackRepository feedbackRepository,
                         UserAccountRepository userAccountRepository,
                         PasswordEncoder passwordEncoder,
@@ -72,6 +76,7 @@ public class AdminService {
         this.wallpaperRepository = wallpaperRepository;
         this.wallpaperFavoriteRepository = wallpaperFavoriteRepository;
         this.wallpaperDownloadEventRepository = wallpaperDownloadEventRepository;
+        this.wallpaperMetricRepository = wallpaperMetricRepository;
         this.feedbackRepository = feedbackRepository;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
@@ -211,6 +216,7 @@ public class AdminService {
 
         wallpaperFavoriteRepository.deleteByBrandId(brand.getId());
         wallpaperDownloadEventRepository.deleteByBrandId(brand.getId());
+        wallpaperMetricRepository.deleteByBrandId(brand.getId());
         wallpaperRepository.deleteByBrandId(brand.getId());
         brandRepository.delete(brand);
 
@@ -300,6 +306,7 @@ public class AdminService {
             wallpaper.setActive(active == null || active.booleanValue());
 
             wallpaper = wallpaperRepository.save(wallpaper);
+            ensureWallpaperMetric(wallpaper);
             catalogService.invalidateOverview();
             adminOperationLogService.logCurrentAction(
                 "WALLPAPER_UPLOAD",
@@ -328,6 +335,7 @@ public class AdminService {
         String brandName = wallpaper.getBrand().getDisplayName();
 
         deleteWallpaperFiles(wallpaper);
+        wallpaperMetricRepository.deleteByWallpaperId(wallpaper.getId());
         wallpaperFavoriteRepository.deleteByWallpaperId(wallpaper.getId());
         wallpaperDownloadEventRepository.deleteByWallpaperId(wallpaper.getId());
         wallpaperRepository.delete(wallpaper);
@@ -912,5 +920,17 @@ public class AdminService {
         } catch (UnsupportedEncodingException exception) {
             throw new IllegalStateException("Unable to decode file path segment.", exception);
         }
+    }
+
+    private void ensureWallpaperMetric(WallpaperEntity wallpaper) {
+        if (wallpaper == null || wallpaper.getId() == null || wallpaperMetricRepository.existsByWallpaperId(wallpaper.getId())) {
+            return;
+        }
+
+        WallpaperMetricEntity metric = new WallpaperMetricEntity();
+        metric.setWallpaper(wallpaper);
+        metric.setFavoriteCount(0L);
+        metric.setDownloadCount(0L);
+        wallpaperMetricRepository.save(metric);
     }
 }

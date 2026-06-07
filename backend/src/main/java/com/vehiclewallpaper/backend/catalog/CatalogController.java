@@ -35,6 +35,12 @@ public class CatalogController {
         return catalogService.getOverview(resolveEngagementKey(request, visitorKey));
     }
 
+    @GetMapping("/summary")
+    public CatalogSummaryResponse summary(@RequestHeader(value = "X-Visitor-Key", required = false) String visitorKey,
+                                          HttpServletRequest request) {
+        return catalogService.getSummary(resolveEngagementKey(request, visitorKey));
+    }
+
     @GetMapping("/brands")
     public List<BrandCatalogResponse> brands(@RequestHeader(value = "X-Visitor-Key", required = false) String visitorKey,
                                              HttpServletRequest request) {
