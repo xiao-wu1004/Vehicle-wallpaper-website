@@ -1533,8 +1533,12 @@
     function focusAccountForAuth(mode) {
         const targetMode = mode === "register" ? "register" : "login";
 
-        if (accountSection) {
-            accountSection.scrollIntoView({ behavior: "smooth" });
+        if (modal && modal.classList.contains("show")) {
+            closeModal();
+        }
+
+        if (isMobileViewport()) {
+            closeMenu();
         }
 
         switchAuthMode(targetMode, { focus: false });
@@ -1542,9 +1546,17 @@
         const targetInput = targetMode === "register"
             ? (registerDisplayNameInput || registerEmailInput)
             : loginEmailInput;
-        if (targetInput) {
-            setTimeout(function () { targetInput.focus(); }, 500);
-        }
+
+        window.setTimeout(function () {
+            if (!scrollToHashTarget("#account", true) && accountSection) {
+                accountSection.scrollIntoView({ behavior: "smooth" });
+                history.replaceState(null, "", "#account");
+            }
+
+            if (targetInput) {
+                window.setTimeout(function () { targetInput.focus(); }, 180);
+            }
+        }, 30);
     }
 
     function buildGuestCatalogSummary(overview, brands, trendingWallpapers) {
