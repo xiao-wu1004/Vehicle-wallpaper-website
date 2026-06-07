@@ -19,6 +19,7 @@ public class UserAuthenticationService {
 
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
     private static final int ACCOUNT_LOCK_MINUTES = 30;
+    private static final long SESSION_TOUCH_INTERVAL_SECONDS = 300L;
 
     private final UserAuthProperties userAuthProperties;
     private final UserAccountRepository userAccountRepository;
@@ -164,8 +165,10 @@ public class UserAuthenticationService {
             return null;
         }
 
-        session.setLastSeenAt(now);
-        userSessionRepository.save(session);
+        if (shouldRefreshLastSeen(session.getLastSeenAt(), now)) {
+            session.setLastSeenAt(now);
+            userSessionRepository.save(session);
+        }
 
         return new UserIdentity(
             account.getId(),
@@ -204,6 +207,10 @@ public class UserAuthenticationService {
         account.setLastLoginAt(LocalDateTime.now());
         account.setLastLoginIp(extractClientIp(request));
         account.setLastLoginUserAgent(extractUserAgent(request));
+    }
+
+    private boolean shouldRefreshLastSeen(LocalDateTime previousLastSeenAt, LocalDateTime now) {
+        return previousLastSeenAt == null || previousLastSeenAt.isBefore(now.minusSeconds(SESSION_TOUCH_INTERVAL_SECONDS));
     }
 
     private long getEffectiveTokenTtlHours() {

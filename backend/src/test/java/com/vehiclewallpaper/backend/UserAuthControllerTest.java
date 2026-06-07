@@ -29,7 +29,7 @@ class UserAuthControllerTest {
     @Test
     void shouldRegisterLoginAndLogoutPublicUser() throws Exception {
         String email = "member-auth@example.com";
-        String token = registerAndExtractAccessToken("Member Auth", email, "member-auth-password");
+        String token = registerAndExtractAccessToken("Member Auth", email, "member-auth-password1");
 
         mockMvc.perform(get("/api/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -60,7 +60,7 @@ class UserAuthControllerTest {
 
     @Test
     void shouldUseAuthenticatedUserForCatalogFavoritesAndProfile() throws Exception {
-        String token = registerAndExtractAccessToken("Garage Driver", "garage-driver@example.com", "garage-driver-password");
+        String token = registerAndExtractAccessToken("Garage Driver", "garage-driver@example.com", "garage-driver-password1");
 
         MvcResult overview = mockMvc.perform(get("/api/catalog")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))

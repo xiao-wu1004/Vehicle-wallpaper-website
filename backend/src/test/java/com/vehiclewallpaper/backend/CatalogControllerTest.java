@@ -65,14 +65,21 @@ class CatalogControllerTest {
             .andExpect(jsonPath("$.wallpaperId").value(wallpaperSlug))
             .andExpect(jsonPath("$.downloadCount").value(1));
 
+        mockMvc.perform(post("/api/catalog/wallpapers/{wallpaperSlug}/downloads", wallpaperSlug)
+                .header(VISITOR_HEADER, VISITOR_KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.wallpaperId").value(wallpaperSlug))
+            .andExpect(jsonPath("$.downloadCount").value(2));
+
         mockMvc.perform(get("/api/catalog/me")
                 .header(VISITOR_HEADER, VISITOR_KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.visitorKey").value(VISITOR_KEY))
             .andExpect(jsonPath("$.favoriteCount").value(1))
-            .andExpect(jsonPath("$.downloadCount").value(1))
+            .andExpect(jsonPath("$.downloadCount").value(2))
             .andExpect(jsonPath("$.favorites[0].id").value(wallpaperSlug))
-            .andExpect(jsonPath("$.recentDownloads[0].id").value(wallpaperSlug));
+            .andExpect(jsonPath("$.recentDownloads[0].id").value(wallpaperSlug))
+            .andExpect(jsonPath("$.recentDownloads.length()").value(1));
 
         mockMvc.perform(get("/api/catalog/wallpapers")
                 .header(VISITOR_HEADER, VISITOR_KEY)

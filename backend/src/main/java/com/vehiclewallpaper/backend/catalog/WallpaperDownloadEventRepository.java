@@ -3,6 +3,7 @@ package com.vehiclewallpaper.backend.catalog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -10,6 +11,13 @@ import java.util.List;
 public interface WallpaperDownloadEventRepository extends JpaRepository<WallpaperDownloadEventEntity, Long> {
 
     List<WallpaperDownloadEventEntity> findAllByVisitorKeyOrderByCreatedAtDesc(String visitorKey);
+
+    @Query("select download from WallpaperDownloadEventEntity download "
+        + "join fetch download.wallpaper wallpaper "
+        + "join fetch wallpaper.brand brand "
+        + "where download.visitorKey = :visitorKey order by download.createdAt desc")
+    List<WallpaperDownloadEventEntity> findRecentByVisitorKeyWithWallpaper(@Param("visitorKey") String visitorKey,
+                                                                           Pageable pageable);
 
     List<WallpaperDownloadEventEntity> findAllByWallpaperBrandId(Long brandId);
 

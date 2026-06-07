@@ -3,6 +3,7 @@ package com.vehiclewallpaper.backend.catalog;
 import com.vehiclewallpaper.backend.config.CatalogProperties;
 import com.vehiclewallpaper.backend.storage.FilesystemWallpaperStorageDriver;
 import com.vehiclewallpaper.backend.web.ResourceNotFoundException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,8 @@ import java.util.stream.Stream;
 
 @Service
 public class CatalogService {
+
+    private static final int PROFILE_DOWNLOAD_BATCH_SIZE = 24;
 
     private static final List<BrandDefinition> DEFAULT_BRAND_DEFINITIONS = Arrays.asList(
         new BrandDefinition("benz", "奔驰", "MercedesBenz"),
@@ -170,35 +173,54 @@ public class CatalogService {
                                              String displayName,
                                              String email) {
         String normalizedVisitorKey = requireVisitorKey(visitorKey);
-        CatalogOverviewResponse overview = getOverview(normalizedVisitorKey);
-        Map<String, WallpaperResponse> wallpaperBySlug = flattenWallpapersBySlug(overview);
+        long favoriteCount = wallpaperFavoriteRepository.countByVisitorKey(normalizedVisitorKey);
+        long downloadCount = wallpaperDownloadEventRepository.countByVisitorKey(normalizedVisitorKey);
+
+        List<WallpaperFavoriteEntity> favoriteEntities = favoriteLimit < 1
+            ? Collections.<WallpaperFavoriteEntity>emptyList()
+            : wallpaperFavoriteRepository.findRecentByVisitorKeyWithWallpaper(
+                normalizedVisitorKey,
+                PageRequest.of(0, favoriteLimit)
+            );
+        List<WallpaperDownloadEventEntity> downloadEntities = collectRecentDownloadEntities(normalizedVisitorKey, downloadLimit);
+
+        List<Long> profileWallpaperIds = collectProfileWallpaperIds(favoriteEntities, downloadEntities);
+        Map<Long, Long> favoriteCounts = profileWallpaperIds.isEmpty()
+            ? Collections.<Long, Long>emptyMap()
+            : aggregateCounts(wallpaperFavoriteRepository.countByWallpaperIds(profileWallpaperIds));
+        Map<Long, Long> downloadCounts = profileWallpaperIds.isEmpty()
+            ? Collections.<Long, Long>emptyMap()
+            : aggregateCounts(wallpaperDownloadEventRepository.countByWallpaperIds(profileWallpaperIds));
+
+        Set<Long> favoritedWallpaperIds = new LinkedHashSet<Long>();
+        for (WallpaperFavoriteEntity favoriteEntity : favoriteEntities) {
+            favoritedWallpaperIds.add(favoriteEntity.getWallpaper().getId());
+        }
+        if (!downloadEntities.isEmpty()) {
+            favoritedWallpaperIds.addAll(
+                wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKeyAndWallpaperIds(normalizedVisitorKey, profileWallpaperIds)
+            );
+        }
 
         List<WallpaperResponse> favorites = new ArrayList<WallpaperResponse>();
-        for (WallpaperFavoriteEntity favorite : wallpaperFavoriteRepository.findAllByVisitorKeyOrderByCreatedAtDesc(normalizedVisitorKey)) {
-            WallpaperResponse wallpaper = wallpaperBySlug.get(favorite.getWallpaper().getSlug());
-            if (wallpaper != null) {
-                favorites.add(wallpaper);
-            }
-            if (favorites.size() >= favoriteLimit) {
-                break;
-            }
+        for (WallpaperFavoriteEntity favoriteEntity : favoriteEntities) {
+            favorites.add(toProfileWallpaperResponse(
+                favoriteEntity.getWallpaper(),
+                favoriteCounts,
+                downloadCounts,
+                true
+            ));
         }
 
         List<WallpaperResponse> recentDownloads = new ArrayList<WallpaperResponse>();
-        Set<String> seenWallpaperSlugs = new LinkedHashSet<String>();
-        for (WallpaperDownloadEventEntity downloadEvent : wallpaperDownloadEventRepository.findAllByVisitorKeyOrderByCreatedAtDesc(normalizedVisitorKey)) {
-            String wallpaperSlug = downloadEvent.getWallpaper().getSlug();
-            if (!seenWallpaperSlugs.add(wallpaperSlug)) {
-                continue;
-            }
-
-            WallpaperResponse wallpaper = wallpaperBySlug.get(wallpaperSlug);
-            if (wallpaper != null) {
-                recentDownloads.add(wallpaper);
-            }
-            if (recentDownloads.size() >= downloadLimit) {
-                break;
-            }
+        for (WallpaperDownloadEventEntity downloadEntity : downloadEntities) {
+            WallpaperEntity wallpaper = downloadEntity.getWallpaper();
+            recentDownloads.add(toProfileWallpaperResponse(
+                wallpaper,
+                favoriteCounts,
+                downloadCounts,
+                favoritedWallpaperIds.contains(wallpaper.getId())
+            ));
         }
 
         return new CatalogProfileResponse(
@@ -206,8 +228,8 @@ public class CatalogService {
             authenticated,
             normalizeValue(displayName),
             normalizeValue(email),
-            wallpaperFavoriteRepository.countByVisitorKey(normalizedVisitorKey),
-            wallpaperDownloadEventRepository.countByVisitorKey(normalizedVisitorKey),
+            favoriteCount,
+            downloadCount,
             favorites,
             recentDownloads
         );
@@ -391,6 +413,30 @@ public class CatalogService {
         );
     }
 
+    private WallpaperResponse toProfileWallpaperResponse(WallpaperEntity wallpaper,
+                                                         Map<Long, Long> favoriteCounts,
+                                                         Map<Long, Long> downloadCounts,
+                                                         boolean favorited) {
+        long favoriteCount = favoriteCounts.containsKey(wallpaper.getId()) ? favoriteCounts.get(wallpaper.getId()) : 0L;
+        long downloadCount = downloadCounts.containsKey(wallpaper.getId()) ? downloadCounts.get(wallpaper.getId()) : 0L;
+        return new WallpaperResponse(
+            wallpaper.getSlug(),
+            wallpaper.getId(),
+            wallpaper.getBrand().getSlug(),
+            wallpaper.getTitle(),
+            wallpaper.getFileName(),
+            wallpaper.getPreviewUrl(),
+            wallpaper.getFullUrl(),
+            wallpaper.getDownloadUrl(),
+            wallpaper.getSortOrder(),
+            favoriteCount,
+            downloadCount,
+            calculateHotScore(favoriteCount, downloadCount),
+            favorited,
+            wallpaper.getCreatedAt()
+        );
+    }
+
     private CatalogMetricsSnapshot createMetricsSnapshot(CatalogOverviewResponse overview, String visitorKey) {
         List<Long> wallpaperIds = new ArrayList<Long>();
         for (BrandCatalogResponse brand : overview.getBrands()) {
@@ -456,6 +502,61 @@ public class CatalogService {
         }
 
         wallpapers.sort(comparator);
+    }
+
+    private List<WallpaperDownloadEventEntity> collectRecentDownloadEntities(String visitorKey, int downloadLimit) {
+        if (downloadLimit < 1) {
+            return Collections.emptyList();
+        }
+
+        List<WallpaperDownloadEventEntity> recentDownloads = new ArrayList<WallpaperDownloadEventEntity>();
+        Set<Long> seenWallpaperIds = new LinkedHashSet<Long>();
+        int page = 0;
+
+        while (recentDownloads.size() < downloadLimit) {
+            List<WallpaperDownloadEventEntity> batch = wallpaperDownloadEventRepository.findRecentByVisitorKeyWithWallpaper(
+                visitorKey,
+                PageRequest.of(page, Math.max(downloadLimit, PROFILE_DOWNLOAD_BATCH_SIZE))
+            );
+            if (batch.isEmpty()) {
+                break;
+            }
+
+            for (WallpaperDownloadEventEntity downloadEvent : batch) {
+                WallpaperEntity wallpaper = downloadEvent.getWallpaper();
+                if (wallpaper == null || !seenWallpaperIds.add(wallpaper.getId())) {
+                    continue;
+                }
+
+                recentDownloads.add(downloadEvent);
+                if (recentDownloads.size() >= downloadLimit) {
+                    break;
+                }
+            }
+
+            if (batch.size() < Math.max(downloadLimit, PROFILE_DOWNLOAD_BATCH_SIZE)) {
+                break;
+            }
+            page++;
+        }
+
+        return recentDownloads;
+    }
+
+    private List<Long> collectProfileWallpaperIds(List<WallpaperFavoriteEntity> favorites,
+                                                  List<WallpaperDownloadEventEntity> downloads) {
+        Set<Long> wallpaperIds = new LinkedHashSet<Long>();
+        for (WallpaperFavoriteEntity favorite : favorites) {
+            if (favorite.getWallpaper() != null) {
+                wallpaperIds.add(favorite.getWallpaper().getId());
+            }
+        }
+        for (WallpaperDownloadEventEntity download : downloads) {
+            if (download.getWallpaper() != null) {
+                wallpaperIds.add(download.getWallpaper().getId());
+            }
+        }
+        return new ArrayList<Long>(wallpaperIds);
     }
 
     private Map<String, WallpaperResponse> flattenWallpapersBySlug(CatalogOverviewResponse overview) {
