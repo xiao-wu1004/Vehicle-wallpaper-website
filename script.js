@@ -45,6 +45,16 @@
     const accountDownloadCount = document.getElementById("accountDownloadCount");
     const accountFavoritesList = document.getElementById("accountFavoritesList");
     const accountDownloadsList = document.getElementById("accountDownloadsList");
+    const guestProfileContent = document.getElementById("guestProfileContent");
+    const memberProfileContent = document.getElementById("memberProfileContent");
+    const guestProfileSummaryCopy = document.getElementById("guestProfileSummaryCopy");
+    const guestBrandCount = document.getElementById("guestBrandCount");
+    const guestWallpaperCount = document.getElementById("guestWallpaperCount");
+    const guestPreviewCount = document.getElementById("guestPreviewCount");
+    const guestTrendingList = document.getElementById("guestTrendingList");
+    const guestBrandList = document.getElementById("guestBrandList");
+    const guestLoginButton = document.getElementById("guestLoginButton");
+    const guestRegisterButton = document.getElementById("guestRegisterButton");
     const feedbackSection = document.getElementById("feedback");
     const defaultApiBase = window.location.protocol === "file:" ? "http://localhost:8080" : "";
     const utf8Decoder = typeof TextDecoder === "function" ? new TextDecoder("utf-8", { fatal: true }) : null;
@@ -98,6 +108,7 @@
         : [];
     const initialGalleryBrandCount = initialGalleryBrandSectionMarkup.length;
     let lastCatalogRenderMode = initialGalleryBrandCount ? "static" : "";
+    let guestCatalogSummary = null;
 
     function normalizeValue(value) {
         return value == null ? "" : String(value).trim();
@@ -154,6 +165,25 @@
 
         const fileNameFallback = displayText(basename(wallpaper && wallpaper.fileName), wallpaper && (wallpaper.id || "壁纸"));
         return fileNameFallback || (brandName + "壁纸");
+    }
+
+    function resolveWallpaperBrandName(wallpaper) {
+        const brandSlug = normalizeValue(wallpaper && wallpaper.brandSlug).toLowerCase();
+        return displayText(wallpaper && wallpaper.brandName, brandNameFallbacks[brandSlug] || brandSlug || "热门精选");
+    }
+
+    function buildGuestBrandAnchorId(slug) {
+        const normalizedSlug = normalizeValue(slug);
+        return normalizedSlug ? "guest-brand-" + normalizedSlug : "";
+    }
+
+    function getBrandNavigationHash(brand, authenticated) {
+        const normalizedSlug = normalizeValue(brand && brand.slug);
+        if (!normalizedSlug) {
+            return "#brands";
+        }
+
+        return authenticated ? "#" + normalizedSlug : "#" + buildGuestBrandAnchorId(normalizedSlug);
     }
 
     function getApiBase() {
@@ -394,6 +424,8 @@
             element.classList.add("is-error");
         } else if (tone === "loading") {
             element.classList.add("is-loading");
+        } else if (tone === "notice") {
+            element.classList.add("is-notice");
         }
     }
 
@@ -1498,6 +1530,225 @@
         lastCatalogRenderMode = "static";
     }
 
+    function focusAccountForAuth(mode) {
+        const targetMode = mode === "register" ? "register" : "login";
+
+        if (accountSection) {
+            accountSection.scrollIntoView({ behavior: "smooth" });
+        }
+
+        switchAuthMode(targetMode, { focus: false });
+
+        const targetInput = targetMode === "register"
+            ? (registerDisplayNameInput || registerEmailInput)
+            : loginEmailInput;
+        if (targetInput) {
+            setTimeout(function () { targetInput.focus(); }, 500);
+        }
+    }
+
+    function buildGuestCatalogSummary(overview, brands, trendingWallpapers) {
+        const safeOverview = overview && typeof overview === "object" ? overview : {};
+        const safeBrands = Array.isArray(brands) && brands.length
+            ? brands
+            : (Array.isArray(safeOverview.brands) ? safeOverview.brands : []);
+        const safeTrendingWallpapers = Array.isArray(trendingWallpapers) && trendingWallpapers.length
+            ? trendingWallpapers
+            : (Array.isArray(safeOverview.trendingWallpapers) ? safeOverview.trendingWallpapers : []);
+
+        return {
+            totalBrands: safeOverview.totalBrands || safeBrands.length || initialGalleryBrandCount || 12,
+            totalWallpapers: safeOverview.totalWallpapers || 0,
+            totalFavorites: safeOverview.totalFavorites || 0,
+            totalDownloads: safeOverview.totalDownloads || 0,
+            brands: safeBrands.slice(0, 8).map(function (brand) {
+                return {
+                    slug: normalizeValue(brand.slug),
+                    name: brand.name,
+                    displayName: brand.displayName,
+                    wallpaperCount: brand.wallpaperCount || 0,
+                    coverImageUrl: brand.coverImageUrl || ""
+                };
+            }),
+            trendingWallpapers: safeTrendingWallpapers.slice(0, 4)
+        };
+    }
+
+    function createGuestBrandCard(brand, options) {
+        const settings = options && typeof options === "object" ? options : {};
+        const article = document.createElement("article");
+        article.className = settings.className || "guest-brand-card";
+        if (settings.compact) {
+            article.classList.add("is-compact");
+        }
+
+        if (settings.includeAnchorId) {
+            const anchorId = buildGuestBrandAnchorId(brand.slug);
+            if (anchorId) {
+                article.id = anchorId;
+            }
+        }
+
+        const visual = document.createElement("div");
+        visual.className = "guest-brand-card-visual";
+        const coverImageUrl = resolveAssetUrl(brand.coverImageUrl);
+        if (coverImageUrl) {
+            const image = document.createElement("img");
+            image.src = coverImageUrl;
+            image.alt = resolveBrandName(brand) + "封面预览";
+            image.loading = "lazy";
+            image.decoding = "async";
+            visual.appendChild(image);
+        } else {
+            const placeholder = document.createElement("span");
+            placeholder.className = "guest-brand-card-placeholder";
+            placeholder.textContent = resolveBrandName(brand).charAt(0);
+            visual.appendChild(placeholder);
+        }
+
+        const badge = document.createElement("span");
+        badge.className = "guest-brand-card-badge";
+        badge.textContent = (brand.wallpaperCount || 0) + " 张";
+        visual.appendChild(badge);
+
+        const copy = document.createElement("div");
+        copy.className = "guest-brand-card-copy";
+
+        const title = document.createElement("strong");
+        title.textContent = resolveBrandName(brand);
+
+        const meta = document.createElement("p");
+        meta.textContent = brand.wallpaperCount
+            ? "先看封面与数量，登录后进入完整品牌壁纸库。"
+            : "登录后进入完整品牌壁纸库。";
+
+        copy.appendChild(title);
+        copy.appendChild(meta);
+        article.appendChild(visual);
+        article.appendChild(copy);
+        return article;
+    }
+
+    function createGuestPreviewItem(wallpaper) {
+        const brandName = resolveWallpaperBrandName(wallpaper);
+        const titleText = resolveWallpaperTitle(brandName, wallpaper);
+        const button = document.createElement("button");
+        button.className = "profile-item guest-preview-item";
+        button.type = "button";
+        button.setAttribute("aria-label", "预览" + titleText);
+        button.dataset.full = resolveAssetUrl(wallpaper.fullUrl || wallpaper.downloadUrl || wallpaper.previewUrl);
+        button.dataset.preview = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
+        button.dataset.wallpaperId = normalizeValue(wallpaper.id);
+        button.dataset.title = titleText;
+        button.dataset.brand = brandName;
+        button.dataset.favorited = wallpaper.favorited ? "true" : "false";
+
+        const image = document.createElement("img");
+        image.src = resolveAssetUrl(wallpaper.previewUrl || wallpaper.fullUrl);
+        image.alt = titleText;
+        image.loading = "lazy";
+        image.decoding = "async";
+
+        const copy = document.createElement("div");
+        const kicker = document.createElement("small");
+        kicker.className = "profile-item-kicker";
+        kicker.textContent = brandName;
+
+        const title = document.createElement("strong");
+        title.textContent = titleText;
+
+        const meta = document.createElement("span");
+        meta.textContent = formatWallpaperEngagementText(wallpaper.favoriteCount, wallpaper.downloadCount);
+
+        copy.appendChild(kicker);
+        copy.appendChild(title);
+        copy.appendChild(meta);
+        button.appendChild(image);
+        button.appendChild(copy);
+        return button;
+    }
+
+    function renderGuestPreviewList(items) {
+        if (!guestTrendingList) {
+            return;
+        }
+
+        guestTrendingList.innerHTML = "";
+        if (!Array.isArray(items) || items.length === 0) {
+            const emptyState = document.createElement("p");
+            emptyState.className = "empty-state";
+            emptyState.textContent = "热门预览正在整理中，先去登录解锁完整图库吧。";
+            guestTrendingList.appendChild(emptyState);
+            return;
+        }
+
+        items.forEach(function (wallpaper) {
+            guestTrendingList.appendChild(createGuestPreviewItem(wallpaper));
+        });
+    }
+
+    function renderGuestBrandList(brands) {
+        if (!guestBrandList) {
+            return;
+        }
+
+        guestBrandList.innerHTML = "";
+        if (!Array.isArray(brands) || brands.length === 0) {
+            const emptyState = document.createElement("p");
+            emptyState.className = "empty-state";
+            emptyState.textContent = "品牌摘要暂时不可用，请先使用左侧账号入口登录。";
+            guestBrandList.appendChild(emptyState);
+            return;
+        }
+
+        brands.slice(0, 6).forEach(function (brand) {
+            guestBrandList.appendChild(createGuestBrandCard(brand));
+        });
+    }
+
+    function renderGuestProfilePanel() {
+        if (!guestProfileContent) {
+            return;
+        }
+
+        const summary = guestCatalogSummary || buildGuestCatalogSummary({
+            totalBrands: initialGalleryBrandCount || 12,
+            totalWallpapers: 0
+        }, [], []);
+        const totalBrands = summary.totalBrands || summary.brands.length || initialGalleryBrandCount || 12;
+        const totalWallpapers = summary.totalWallpapers || 0;
+        const previewItems = Array.isArray(summary.trendingWallpapers) ? summary.trendingWallpapers.slice(0, 4) : [];
+        const previewCount = previewItems.length;
+
+        if (guestProfileSummaryCopy) {
+            if (totalWallpapers && previewCount) {
+                guestProfileSummaryCopy.textContent = "当前游客模式可先预览 " + previewCount
+                    + " 张热门壁纸，站内已收录 " + totalBrands + " 个品牌、" + totalWallpapers
+                    + " 张高清壁纸。登录后即可同步收藏与下载记录。";
+            } else if (totalWallpapers) {
+                guestProfileSummaryCopy.textContent = "站内已收录 " + totalBrands + " 个品牌、" + totalWallpapers
+                    + " 张高清壁纸。登录后即可解锁完整图库与账号同步。";
+            } else {
+                guestProfileSummaryCopy.textContent = "先看热门预览，再登录解锁完整品牌图库与账号同步。";
+            }
+        }
+
+        if (guestBrandCount) {
+            guestBrandCount.textContent = String(totalBrands);
+        }
+
+        if (guestWallpaperCount) {
+            guestWallpaperCount.textContent = String(totalWallpapers);
+        }
+
+        if (guestPreviewCount) {
+            guestPreviewCount.textContent = String(previewCount);
+        }
+
+        renderGuestPreviewList(previewItems);
+        renderGuestBrandList(summary.brands);
+    }
+
     function renderGalleryLoginGate(overview, brands) {
         if (!gallerySection) {
             return;
@@ -1506,81 +1757,116 @@
         clearDynamicCatalogSections();
         removeGalleryLoginGate();
 
-        const safeOverview = overview && typeof overview === "object" ? overview : {};
-        const summaryBrands = Array.isArray(brands) ? brands : [];
-        const totalBrands = safeOverview.totalBrands || summaryBrands.length || initialGalleryBrandCount || 12;
-        const totalWallpapers = safeOverview.totalWallpapers || 0;
-
+        const summary = buildGuestCatalogSummary(overview, brands);
         const gate = document.createElement("div");
         gate.className = "gallery-login-gate";
+
         const gateCard = document.createElement("div");
         gateCard.className = "gallery-login-gate-card";
 
-        const icon = document.createElement("p");
-        icon.className = "gallery-login-gate-icon";
-        icon.textContent = "🔐";
+        const hero = document.createElement("div");
+        hero.className = "gallery-login-gate-hero";
+
+        const copy = document.createElement("div");
+        copy.className = "gallery-login-gate-copy";
+
+        const kicker = document.createElement("p");
+        kicker.className = "gallery-login-gate-kicker";
+        kicker.textContent = "游客预览";
 
         const title = document.createElement("h3");
-        title.textContent = "登录后查看全部壁纸";
+        title.textContent = "先看热门预览，再登录解锁完整高清图库";
 
         const description = document.createElement("p");
-        description.innerHTML = "我们收录了 <strong>" + totalBrands + "</strong> 个品牌"
-            + (totalWallpapers ? "、<strong>" + totalWallpapers + "</strong> 张精选壁纸" : "")
-            + "，登录后即可浏览完整高清图库。";
+        description.textContent = "当前已收录 " + summary.totalBrands + " 个品牌"
+            + (summary.totalWallpapers ? "、" + summary.totalWallpapers + " 张高清壁纸" : "")
+            + "。游客可以先浏览热门封面和预览图，登录后再进入完整品牌页并同步收藏。";
 
-        gateCard.appendChild(icon);
-        gateCard.appendChild(title);
-        gateCard.appendChild(description);
+        const actions = document.createElement("div");
+        actions.className = "gallery-login-gate-actions";
 
-        if (summaryBrands.length) {
-            const summary = document.createElement("div");
-            summary.className = "gallery-login-gate-summary";
-
-            const summaryTitle = document.createElement("p");
-            summaryTitle.textContent = "品牌概览";
-            summary.appendChild(summaryTitle);
-
-            const list = document.createElement("ul");
-            summaryBrands.slice(0, 12).forEach(function (brand) {
-                const item = document.createElement("li");
-                item.textContent = resolveBrandName(brand) + " · " + (brand.wallpaperCount || 0) + " 张";
-                list.appendChild(item);
-            });
-
-            summary.appendChild(list);
-            gateCard.appendChild(summary);
-        }
-
-        const actionButton = document.createElement("button");
-        actionButton.type = "button";
-        actionButton.className = "form-submit gallery-login-gate-button";
-        actionButton.textContent = "去登录 / 注册";
-        actionButton.addEventListener("click", function () {
-            const accountSection = document.getElementById("account");
-            if (accountSection) {
-                accountSection.scrollIntoView({ behavior: "smooth" });
-            }
-            switchAuthMode("login", { focus: false });
-            const loginInput = document.getElementById("loginEmail");
-            if (loginInput) {
-                setTimeout(function () { loginInput.focus(); }, 500);
-            }
+        const loginAction = document.createElement("button");
+        loginAction.type = "button";
+        loginAction.className = "form-submit gallery-login-gate-button";
+        loginAction.textContent = "去登录";
+        loginAction.addEventListener("click", function () {
+            focusAccountForAuth("login");
         });
 
-        gateCard.appendChild(actionButton);
+        const registerAction = document.createElement("button");
+        registerAction.type = "button";
+        registerAction.className = "secondary-button gallery-login-gate-button is-secondary";
+        registerAction.textContent = "快速注册";
+        registerAction.addEventListener("click", function () {
+            focusAccountForAuth("register");
+        });
+
+        actions.appendChild(loginAction);
+        actions.appendChild(registerAction);
+
+        const stats = document.createElement("div");
+        stats.className = "gallery-login-gate-stats";
+        [
+            { value: summary.totalBrands, label: "收录品牌" },
+            { value: summary.totalWallpapers, label: "精选壁纸" },
+            { value: summary.trendingWallpapers.length, label: "热门预览" }
+        ].forEach(function (entry) {
+            const stat = document.createElement("article");
+            stat.className = "gallery-login-gate-stat";
+
+            const value = document.createElement("strong");
+            value.textContent = String(entry.value || 0);
+            const label = document.createElement("span");
+            label.textContent = entry.label;
+
+            stat.appendChild(value);
+            stat.appendChild(label);
+            stats.appendChild(stat);
+        });
+
+        copy.appendChild(kicker);
+        copy.appendChild(title);
+        copy.appendChild(description);
+        copy.appendChild(actions);
+        copy.appendChild(stats);
+        hero.appendChild(copy);
+        gateCard.appendChild(hero);
+
+        if (summary.brands.length) {
+            const showcase = document.createElement("div");
+            showcase.className = "gallery-login-gate-showcase";
+
+            const showcaseHead = document.createElement("div");
+            showcaseHead.className = "gallery-login-gate-showcase-head";
+
+            const showcaseTitle = document.createElement("h4");
+            showcaseTitle.textContent = "品牌速览";
+            const showcaseMeta = document.createElement("p");
+            showcaseMeta.textContent = "先看封面与数量，点击登录后再进入完整品牌图库。";
+
+            const showcaseGrid = document.createElement("div");
+            showcaseGrid.className = "gallery-login-gate-grid";
+            summary.brands.slice(0, 6).forEach(function (brand) {
+                showcaseGrid.appendChild(createGuestBrandCard(brand, { compact: true, includeAnchorId: true }));
+            });
+
+            showcaseHead.appendChild(showcaseTitle);
+            showcaseHead.appendChild(showcaseMeta);
+            showcase.appendChild(showcaseHead);
+            showcase.appendChild(showcaseGrid);
+            gateCard.appendChild(showcase);
+        }
+
         gate.appendChild(gateCard);
         gallerySection.appendChild(gate);
         lastCatalogRenderMode = "gate";
     }
 
-    function renderBrandNavigation(brands, useBrandAnchors) {
-        const enableBrandAnchors = useBrandAnchors !== false;
-
+    function renderBrandNavigation(brands, authenticated) {
         if (brandSubmenu) {
             brandSubmenu.innerHTML = "";
             brands.forEach(function (brand) {
-                const hash = enableBrandAnchors ? "#" + brand.slug : "#brands";
-                brandSubmenu.appendChild(createBrandMenuLink(hash, resolveBrandName(brand)));
+                brandSubmenu.appendChild(createBrandMenuLink(getBrandNavigationHash(brand, authenticated), resolveBrandName(brand)));
             });
         }
 
@@ -1588,7 +1874,7 @@
             brandChipList.innerHTML = "";
             brands.forEach(function (brand) {
                 const listItem = document.createElement("li");
-                listItem.appendChild(createBrandMenuLink(enableBrandAnchors ? "#" + brand.slug : "#brands", resolveBrandName(brand)));
+                listItem.appendChild(createBrandMenuLink(getBrandNavigationHash(brand, authenticated), resolveBrandName(brand)));
                 brandChipList.appendChild(listItem);
             });
         }
@@ -1814,7 +2100,7 @@
         if (accountStatusCopy) {
             accountStatusCopy.textContent = authenticated
                 ? "已登录，收藏和下载记录会随账号同步。"
-                : "当前以游客身份浏览，收藏和下载记录仅保存在本机浏览器。";
+                : "当前为游客模式，可先看热门预览；登录后即可同步收藏与下载记录。";
         }
 
         if (accountForms) {
@@ -1837,6 +2123,14 @@
             logoutButton.hidden = !authenticated;
         }
 
+        if (guestProfileContent) {
+            guestProfileContent.hidden = authenticated;
+        }
+
+        if (memberProfileContent) {
+            memberProfileContent.hidden = !authenticated;
+        }
+
         if (accountFavoriteCount) {
             accountFavoriteCount.textContent = String(activeProfile.favoriteCount || 0);
         }
@@ -1845,16 +2139,21 @@
             accountDownloadCount.textContent = String(activeProfile.downloadCount || 0);
         }
 
-        renderProfileList(
-            accountFavoritesList,
-            activeProfile.favorites,
-            authenticated ? "还没有收藏任何壁纸，去壁纸库挑一张吧。" : "游客收藏会显示在这里。"
-        );
-        renderProfileList(
-            accountDownloadsList,
-            activeProfile.recentDownloads,
-            authenticated ? "还没有下载记录，打开任意壁纸即可开始积累。" : "最近下载会显示在这里。"
-        );
+        if (authenticated) {
+            renderProfileList(
+                accountFavoritesList,
+                activeProfile.favorites,
+                "还没有收藏任何壁纸，去壁纸库挑一张吧。"
+            );
+            renderProfileList(
+                accountDownloadsList,
+                activeProfile.recentDownloads,
+                "还没有下载记录，打开任意壁纸即可开始积累。"
+            );
+            return;
+        }
+
+        renderGuestProfilePanel();
     }
 
     function buildAuthenticatedProfileFallback() {
@@ -1977,15 +2276,7 @@
 
     function promptLogin(message) {
         if (window.confirm(message || "登录后即可使用完整功能，现在去登录？")) {
-            const accountSection = document.getElementById("account");
-            if (accountSection) {
-                accountSection.scrollIntoView({ behavior: "smooth" });
-            }
-            switchAuthMode("login", { focus: false });
-            const loginInput = document.getElementById("loginEmail");
-            if (loginInput) {
-                setTimeout(function () { loginInput.focus(); }, 500);
-            }
+            focusAccountForAuth("login");
         }
     }
 
@@ -2093,18 +2384,18 @@
             ? overview.trendingWallpapers
             : [];
         const authenticated = Boolean(authState.accessToken);
+        guestCatalogSummary = buildGuestCatalogSummary(overview, brands, trendingWallpapers);
 
         dynamicBrandHashes = new Set(["#brands"]);
-        if (authenticated) {
-            brands.forEach(function (brand) {
-                dynamicBrandHashes.add("#" + brand.slug);
-            });
-        }
+        brands.forEach(function (brand) {
+            dynamicBrandHashes.add(getBrandNavigationHash(brand, authenticated));
+        });
 
         renderBrandNavigation(brands, authenticated);
 
         if (!authenticated) {
             renderGalleryLoginGate(overview, brands);
+            renderGuestProfilePanel();
         } else {
             renderBrandSections(brands);
         }
@@ -2135,13 +2426,16 @@
             .catch(function () {
                 if (authenticated) {
                     restoreStaticCatalogSections();
+                    setCatalogStatus("暂时无法从后端加载最新壁纸库，当前显示静态备用内容。", "error");
                 } else {
-                    renderGalleryLoginGate({
+                    guestCatalogSummary = buildGuestCatalogSummary({
                         totalBrands: initialGalleryBrandCount || 12,
                         totalWallpapers: 0
-                    }, []);
+                    }, [], []);
+                    renderGalleryLoginGate(guestCatalogSummary, guestCatalogSummary.brands);
+                    renderGuestProfilePanel();
+                    setCatalogStatus("首页摘要暂时不可用，当前先展示静态预览。", "notice");
                 }
-                setCatalogStatus("暂时无法从后端加载最新图床，当前显示静态备用内容。", "error");
                 highlightCurrentNav();
                 updateBackToHomeButton();
             });
@@ -2833,6 +3127,18 @@
                 await loadCatalog();
                 setButtonBusy(logoutButton, false);
             }
+        });
+    }
+
+    if (guestLoginButton) {
+        guestLoginButton.addEventListener("click", function () {
+            focusAccountForAuth("login");
+        });
+    }
+
+    if (guestRegisterButton) {
+        guestRegisterButton.addEventListener("click", function () {
+            focusAccountForAuth("register");
         });
     }
 

@@ -385,32 +385,81 @@
         </div>
 
         <div class="profile-panel" id="accountProfilePanel">
-            <div class="profile-stats">
-                <article class="profile-stat">
-                    <span id="accountFavoriteCount">0</span>
-                    <p>收藏壁纸</p>
-                </article>
-                <article class="profile-stat">
-                    <span id="accountDownloadCount">0</span>
-                    <p>最近下载</p>
-                </article>
-            </div>
-
-            <div class="profile-columns">
-                <div class="profile-column">
-                    <div class="profile-column-head">
-                        <h3>我的收藏</h3>
-                        <p>点击卡片可快速预览</p>
+            <div class="guest-profile" id="guestProfileContent">
+                <div class="guest-profile-hero">
+                    <div class="guest-profile-copy">
+                        <p class="guest-profile-kicker">游客模式</p>
+                        <h3>先看热门预览，再登录解锁完整高清图库</h3>
+                        <p id="guestProfileSummaryCopy">正在整理最新品牌和热门壁纸摘要。</p>
                     </div>
-                    <div id="accountFavoritesList" class="profile-list"></div>
+                    <div class="guest-profile-actions">
+                        <button id="guestLoginButton" class="secondary-button" type="button">去登录</button>
+                        <button id="guestRegisterButton" class="form-submit auth-submit" type="button">快速注册</button>
+                    </div>
                 </div>
 
-                <div class="profile-column">
-                    <div class="profile-column-head">
-                        <h3>最近下载</h3>
-                        <p>保留最近访问的高清壁纸</p>
+                <div class="guest-profile-stats">
+                    <article class="profile-stat guest-profile-stat">
+                        <span id="guestBrandCount">0</span>
+                        <p>已收录品牌</p>
+                    </article>
+                    <article class="profile-stat guest-profile-stat">
+                        <span id="guestWallpaperCount">0</span>
+                        <p>精选壁纸</p>
+                    </article>
+                    <article class="profile-stat guest-profile-stat">
+                        <span id="guestPreviewCount">0</span>
+                        <p>热门预览</p>
+                    </article>
+                </div>
+
+                <div class="profile-columns guest-profile-columns">
+                    <div class="profile-column">
+                        <div class="profile-column-head">
+                            <h3>热门预览</h3>
+                            <p>游客模式下也能先点开预览，再决定要不要登录收藏</p>
+                        </div>
+                        <div id="guestTrendingList" class="profile-list"></div>
                     </div>
-                    <div id="accountDownloadsList" class="profile-list"></div>
+
+                    <div class="profile-column">
+                        <div class="profile-column-head">
+                            <h3>品牌速览</h3>
+                            <p>先看看每个品牌的封面和数量，登录后再进入完整图库</p>
+                        </div>
+                        <div id="guestBrandList" class="guest-brand-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="memberProfileContent" hidden>
+                <div class="profile-stats">
+                    <article class="profile-stat">
+                        <span id="accountFavoriteCount">0</span>
+                        <p>收藏壁纸</p>
+                    </article>
+                    <article class="profile-stat">
+                        <span id="accountDownloadCount">0</span>
+                        <p>最近下载</p>
+                    </article>
+                </div>
+
+                <div class="profile-columns">
+                    <div class="profile-column">
+                        <div class="profile-column-head">
+                            <h3>我的收藏</h3>
+                            <p>点击卡片可快速预览</p>
+                        </div>
+                        <div id="accountFavoritesList" class="profile-list"></div>
+                    </div>
+
+                    <div class="profile-column">
+                        <div class="profile-column-head">
+                            <h3>最近下载</h3>
+                            <p>保留最近访问的高清壁纸</p>
+                        </div>
+                        <div id="accountDownloadsList" class="profile-list"></div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -287,6 +287,11 @@ nav ul li .dropdown a.active {
     color: #b42318;
 }
 
+.catalog-status.is-notice {
+    background: rgba(255, 248, 230, 0.96);
+    color: #8a5a00;
+}
+
 .brand-chip-list {
     display: flex;
     flex-wrap: wrap;
@@ -701,6 +706,77 @@ nav ul li .dropdown a.active {
     border-top: 1px solid rgba(17, 24, 39, 0.08);
 }
 
+.guest-profile {
+    display: grid;
+    gap: 20px;
+}
+
+.guest-profile-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: start;
+    padding: 22px;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at top right, rgba(255, 215, 0, 0.18), transparent 36%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(251, 248, 239, 0.94));
+    border: 1px solid rgba(255, 215, 0, 0.16);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+}
+
+.guest-profile-copy {
+    display: grid;
+    gap: 10px;
+}
+
+.guest-profile-kicker {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #8a6b00;
+}
+
+.guest-profile-copy h3 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+}
+
+.guest-profile-copy p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.75;
+}
+
+.guest-profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.guest-profile-actions .secondary-button,
+.guest-profile-actions .form-submit {
+    min-width: 132px;
+}
+
+.guest-profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.guest-profile-stat {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 247, 238, 0.92));
+    border-color: rgba(255, 215, 0, 0.18);
+}
+
 .profile-stats {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -783,6 +859,20 @@ nav ul li .dropdown a.active {
     border-radius: 12px;
 }
 
+.profile-item > div {
+    min-width: 0;
+}
+
+.profile-item-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: #8a6b00;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
 .profile-item strong {
     display: block;
     margin-bottom: 4px;
@@ -800,6 +890,98 @@ nav ul li .dropdown a.active {
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.76);
     color: var(--text-muted);
+}
+
+.guest-preview-item {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(249, 247, 240, 0.92));
+    border: 1px solid rgba(255, 215, 0, 0.12);
+}
+
+.guest-brand-list {
+    display: grid;
+    gap: 12px;
+}
+
+.guest-brand-card {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.76);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.guest-brand-card.is-compact {
+    grid-template-columns: 1fr;
+    padding: 14px;
+}
+
+.guest-brand-card-visual {
+    position: relative;
+    min-height: 84px;
+    overflow: hidden;
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at top, rgba(255, 215, 0, 0.24), rgba(255, 255, 255, 0.96)),
+        linear-gradient(135deg, #f4ead3, #ffffff);
+}
+
+.guest-brand-card.is-compact .guest-brand-card-visual {
+    min-height: 148px;
+}
+
+.guest-brand-card-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.guest-brand-card-placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: #8a6b00;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.guest-brand-card-badge {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.78);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.guest-brand-card-copy {
+    display: grid;
+    align-content: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.guest-brand-card-copy strong {
+    color: var(--text-main);
+}
+
+.guest-brand-card-copy p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.65;
 }
 
 .carousel {
@@ -1481,33 +1663,115 @@ body.scroll-locked {
 }
 
 .gallery-login-gate-card {
-    text-align: center;
-    max-width: 420px;
-    padding: 36px 28px;
-    border-radius: 16px;
-    background: var(--surface-bg);
+    width: min(100%, 1080px);
+    padding: 30px;
+    border-radius: 28px;
+    background:
+        radial-gradient(circle at top right, rgba(255, 215, 0, 0.18), transparent 34%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(247, 250, 255, 0.94));
+    border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: var(--shadow-soft);
 }
 
-.gallery-login-gate-icon {
-    font-size: 48px;
-    margin: 0 0 12px;
+.gallery-login-gate-hero {
+    display: grid;
+    gap: 24px;
+}
+
+.gallery-login-gate-copy {
+    display: grid;
+    gap: 16px;
+}
+
+.gallery-login-gate-kicker {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8a6b00;
 }
 
 .gallery-login-gate-card h3 {
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--text-main);
-    font-size: 1.25em;
+    font-size: clamp(1.8rem, 3vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
 }
 
 .gallery-login-gate-card p {
-    margin: 0 0 20px;
+    margin: 0;
     color: var(--text-muted);
-    line-height: 1.6;
+    line-height: 1.75;
+}
+
+.gallery-login-gate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .gallery-login-gate-button {
-    width: 100%;
+    width: auto;
+    min-width: 140px;
+}
+
+.gallery-login-gate-button.is-secondary {
+    background: rgba(255, 255, 255, 0.84);
+}
+
+.gallery-login-gate-button.is-secondary:hover,
+.gallery-login-gate-button.is-secondary:focus-visible {
+    background: rgba(255, 255, 255, 1);
+}
+
+.gallery-login-gate-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.gallery-login-gate-stat {
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+}
+
+.gallery-login-gate-stat strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-main);
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+}
+
+.gallery-login-gate-stat span {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.gallery-login-gate-showcase {
+    display: grid;
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.gallery-login-gate-showcase-head h4 {
+    margin: 0 0 4px;
+    color: var(--text-main);
+}
+
+.gallery-login-gate-showcase-head p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.gallery-login-gate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
 }
 
 /* 妯℃€佹搴曢儴鎿嶄綔鏍?*/
@@ -1854,6 +2118,29 @@ body.scroll-locked {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .guest-profile-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .guest-profile-actions {
+        justify-content: flex-start;
+    }
+
+    .guest-profile-stats,
+    .gallery-login-gate-stats,
+    .gallery-login-gate-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .guest-brand-card {
+        grid-template-columns: 96px minmax(0, 1fr);
+    }
+
+    .gallery-login-gate-card {
+        padding: 22px 18px;
+        border-radius: 22px;
+    }
+
     .wallpaper-card-body {
         flex-direction: column;
         align-items: stretch;
@@ -1885,8 +2172,23 @@ body.scroll-locked {
 }
 
 @media (max-width: 480px) {
+    .guest-profile-stats,
     .profile-stats {
         grid-template-columns: 1fr;
+    }
+
+    .gallery-login-gate-stats,
+    .gallery-login-gate-grid,
+    .guest-brand-card {
+        grid-template-columns: 1fr;
+    }
+
+    .gallery-login-gate-actions {
+        display: grid;
+    }
+
+    .gallery-login-gate-button {
+        width: 100%;
     }
 
     .profile-column,
