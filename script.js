@@ -1313,34 +1313,17 @@
         setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
     }
 
-    async function triggerFileDownload(url, fileName) {
-        const response = await fetch(url, {
-            headers: buildApiHeaders({
-                Accept: "*/*"
-            })
-        });
-
-        if (!response.ok) {
-            const payload = await response.json().catch(function () {
-                return {};
-            });
-            const error = new Error(payload.message || "下载失败，请稍后重试。");
-            error.status = response.status;
-            throw error;
-        }
-
-        const blob = await response.blob();
-        const objectUrl = window.URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = objectUrl;
+    function triggerFileDownload(url, fileName) {
+        // 不用 fetch，纯 <a download> 触发浏览器原生下载。
+        // /download 端点已带 Content-Disposition: attachment，浏览器自动下载不预览。
+        var anchor = document.createElement("a");
+        anchor.href = url;
         anchor.download = fileName;
         anchor.style.display = "none";
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
-        window.setTimeout(function () {
-            window.URL.revokeObjectURL(objectUrl);
-        }, 0);
+        return Promise.resolve();
     }
 
     function syncDownloadButtonState() {
