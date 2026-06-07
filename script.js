@@ -80,6 +80,7 @@
     let catalogStatusElement = null;
     let currentModalWallpaper = null;
     let currentAuthMode = "login";
+    let profileRefreshTimer = 0;
     const initialGalleryBrandSectionMarkup = gallerySection
         ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
             return section.outerHTML;
@@ -579,6 +580,104 @@
         } else {
             button.removeAttribute("aria-busy");
         }
+    }
+
+    function formatWallpaperEngagementText(favoriteCount, downloadCount) {
+        return (favoriteCount || 0) + " 收藏 / " + (downloadCount || 0) + " 下载";
+    }
+
+    function applyWallpaperFavoriteState(wallpaperId, favorited) {
+        const normalizedWallpaperId = normalizeValue(wallpaperId);
+        if (!normalizedWallpaperId) {
+            return;
+        }
+
+        Array.prototype.slice.call(document.querySelectorAll(".image-card, .profile-item")).forEach(function (element) {
+            if (normalizeValue(element.dataset.wallpaperId) === normalizedWallpaperId) {
+                element.dataset.favorited = favorited ? "true" : "false";
+            }
+        });
+
+        Array.prototype.slice.call(document.querySelectorAll(".favorite-toggle")).forEach(function (favoriteToggle) {
+            if (normalizeValue(favoriteToggle.dataset.wallpaperId) === normalizedWallpaperId) {
+                setFavoriteButtonState(favoriteToggle, favorited);
+            }
+        });
+
+        if (modalFavoriteButton && normalizeValue(modalFavoriteButton.dataset.wallpaperId) === normalizedWallpaperId) {
+            setFavoriteButtonState(modalFavoriteButton, favorited);
+        }
+
+        if (currentModalWallpaper && currentModalWallpaper.wallpaperId === normalizedWallpaperId) {
+            currentModalWallpaper.favorited = favorited;
+        }
+    }
+
+    function applyWallpaperInteractionMetrics(wallpaperId, favoriteCount, downloadCount) {
+        const normalizedWallpaperId = normalizeValue(wallpaperId);
+        if (!normalizedWallpaperId) {
+            return;
+        }
+
+        Array.prototype.slice.call(document.querySelectorAll(".wallpaper-card")).forEach(function (card) {
+            const favoriteToggle = card.querySelector(".favorite-toggle");
+            if (!favoriteToggle || normalizeValue(favoriteToggle.dataset.wallpaperId) !== normalizedWallpaperId) {
+                return;
+            }
+
+            const meta = card.querySelector(".wallpaper-card-meta");
+            if (meta) {
+                meta.textContent = formatWallpaperEngagementText(favoriteCount, downloadCount);
+            }
+        });
+
+        Array.prototype.slice.call(document.querySelectorAll(".profile-item")).forEach(function (item) {
+            if (normalizeValue(item.dataset.wallpaperId) !== normalizedWallpaperId) {
+                return;
+            }
+
+            const meta = item.querySelector("span");
+            if (meta) {
+                meta.textContent = formatWallpaperEngagementText(favoriteCount, downloadCount);
+            }
+        });
+
+        if (currentModalWallpaper && currentModalWallpaper.wallpaperId === normalizedWallpaperId) {
+            currentModalWallpaper.favoriteCount = favoriteCount;
+            currentModalWallpaper.downloadCount = downloadCount;
+        }
+    }
+
+    function applyOptimisticProfileFavoriteDelta(delta) {
+        if (!delta) {
+            return;
+        }
+
+        if (authState.profile && authState.profile.authenticated) {
+            authState.profile.favoriteCount = Math.max(0, (authState.profile.favoriteCount || 0) + delta);
+        }
+
+        if (!accountFavoriteCount) {
+            return;
+        }
+
+        const currentCount = parseInt(accountFavoriteCount.textContent || "0", 10);
+        if (Number.isNaN(currentCount)) {
+            return;
+        }
+
+        accountFavoriteCount.textContent = String(Math.max(0, currentCount + delta));
+    }
+
+    function scheduleProfileRefresh() {
+        if (profileRefreshTimer) {
+            window.clearTimeout(profileRefreshTimer);
+        }
+
+        profileRefreshTimer = window.setTimeout(function () {
+            profileRefreshTimer = 0;
+            loadProfile();
+        }, 180);
     }
 
     function getHiResPreviewSrc(fullSrc) {
@@ -1229,7 +1328,7 @@
 
         const meta = document.createElement("p");
         meta.className = "wallpaper-card-meta";
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+        meta.textContent = formatWallpaperEngagementText(wallpaper.favoriteCount, wallpaper.downloadCount);
 
         copy.appendChild(titleElement);
         copy.appendChild(meta);
@@ -1485,7 +1584,7 @@
         const title = document.createElement("strong");
         title.textContent = resolveWallpaperTitle("", wallpaper);
         const meta = document.createElement("span");
-        meta.textContent = (wallpaper.favoriteCount || 0) + " 收藏 / " + (wallpaper.downloadCount || 0) + " 下载";
+        meta.textContent = formatWallpaperEngagementText(wallpaper.favoriteCount, wallpaper.downloadCount);
 
         copy.appendChild(title);
         copy.appendChild(meta);
@@ -1689,7 +1788,12 @@
             return;
         }
 
+        const previousFavorited = button.dataset.favorited === "true";
         const shouldFavorite = button.dataset.favorited !== "true";
+        const optimisticDelta = shouldFavorite ? 1 : -1;
+        applyWallpaperFavoriteState(wallpaperId, shouldFavorite);
+        applyOptimisticProfileFavoriteDelta(optimisticDelta);
+
         setButtonBusy(button, true);
         if (modalFavoriteButton && modalFavoriteButton !== button && modalFavoriteButton.dataset.wallpaperId === wallpaperId) {
             setButtonBusy(modalFavoriteButton, true);
@@ -1701,13 +1805,15 @@
                 ? await requestJson(endpoint, { method: "POST" })
                 : await requestJson(endpoint, { method: "DELETE" });
 
-            setFavoriteButtonState(button, Boolean(payload.favorited));
-            if (modalFavoriteButton && modalFavoriteButton.dataset.wallpaperId === wallpaperId) {
-                setFavoriteButtonState(modalFavoriteButton, Boolean(payload.favorited));
-            }
+            applyWallpaperFavoriteState(wallpaperId, Boolean(payload.favorited));
+            applyWallpaperInteractionMetrics(wallpaperId, payload.favoriteCount || 0, payload.downloadCount || 0);
 
-            await Promise.all([loadCatalog(), loadProfile()]);
+            const finalFavoriteDelta = (payload.favorited ? 1 : 0) - (previousFavorited ? 1 : 0);
+            applyOptimisticProfileFavoriteDelta(finalFavoriteDelta - optimisticDelta);
+            scheduleProfileRefresh();
         } catch (error) {
+            applyWallpaperFavoriteState(wallpaperId, previousFavorited);
+            applyOptimisticProfileFavoriteDelta(-optimisticDelta);
             window.alert(error.message || "收藏操作失败，请稍后重试。");
         } finally {
             setButtonBusy(button, false);
