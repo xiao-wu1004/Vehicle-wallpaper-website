@@ -71,6 +71,14 @@ class CatalogControllerTest {
             .andExpect(jsonPath("$.wallpaperId").value(wallpaperSlug))
             .andExpect(jsonPath("$.downloadCount").value(2));
 
+        mockMvc.perform(get("/api/catalog")
+                .header(VISITOR_HEADER, VISITOR_KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].id").value(wallpaperSlug))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favorited").value(true))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favoriteCount").value(1))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].downloadCount").value(2));
+
         mockMvc.perform(get("/api/catalog/me")
                 .header(VISITOR_HEADER, VISITOR_KEY))
             .andExpect(status().isOk())
@@ -94,6 +102,14 @@ class CatalogControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.favorited").value(false))
             .andExpect(jsonPath("$.favoriteCount").value(0));
+
+        mockMvc.perform(get("/api/catalog")
+                .header(VISITOR_HEADER, VISITOR_KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].id").value(wallpaperSlug))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favorited").value(false))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favoriteCount").value(0))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].downloadCount").value(2));
     }
 
     @Test

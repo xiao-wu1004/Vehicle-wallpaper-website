@@ -13,6 +13,8 @@ public interface WallpaperFavoriteRepository extends JpaRepository<WallpaperFavo
 
     Optional<WallpaperFavoriteEntity> findByVisitorKeyAndWallpaperId(String visitorKey, Long wallpaperId);
 
+    boolean existsByVisitorKeyAndWallpaperId(String visitorKey, Long wallpaperId);
+
     List<WallpaperFavoriteEntity> findAllByVisitorKeyOrderByCreatedAtDesc(String visitorKey);
 
     @Query("select favorite from WallpaperFavoriteEntity favorite "
@@ -41,6 +43,12 @@ public interface WallpaperFavoriteRepository extends JpaRepository<WallpaperFavo
     @Modifying(clearAutomatically = true)
     @Query("delete from WallpaperFavoriteEntity favorite where favorite.wallpaper.id = :wallpaperId")
     int deleteByWallpaperId(@Param("wallpaperId") Long wallpaperId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("delete from WallpaperFavoriteEntity favorite "
+        + "where favorite.visitorKey = :visitorKey and favorite.wallpaper.id = :wallpaperId")
+    int deleteByVisitorKeyAndWallpaperId(@Param("visitorKey") String visitorKey,
+                                         @Param("wallpaperId") Long wallpaperId);
 
     @Modifying(clearAutomatically = true)
     @Query("delete from WallpaperFavoriteEntity favorite where favorite.wallpaper.id in "

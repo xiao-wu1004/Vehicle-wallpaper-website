@@ -82,6 +82,14 @@ class UserAuthControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.downloadCount").isNumber());
 
+        mockMvc.perform(get("/api/catalog")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].id").value(wallpaperSlug))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favorited").value(true))
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].favoriteCount").isNumber())
+            .andExpect(jsonPath("$.brands[0].wallpapers[0].downloadCount").isNumber());
+
         mockMvc.perform(get("/api/catalog/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())

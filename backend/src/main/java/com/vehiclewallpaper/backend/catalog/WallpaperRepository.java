@@ -15,6 +15,10 @@ public interface WallpaperRepository extends JpaRepository<WallpaperEntity, Long
     List<WallpaperEntity> findByBrandIdOrderBySortOrderAsc(@Param("brandId") Long brandId);
 
     @Query("select wallpaper from WallpaperEntity wallpaper join fetch wallpaper.brand brand "
+        + "where wallpaper.active = true order by brand.sortOrder asc, wallpaper.sortOrder asc, wallpaper.id asc")
+    List<WallpaperEntity> findAllActiveWithBrandOrder();
+
+    @Query("select wallpaper from WallpaperEntity wallpaper join fetch wallpaper.brand brand "
         + "order by brand.sortOrder asc, wallpaper.sortOrder asc, wallpaper.id asc")
     List<WallpaperEntity> findAllForAdmin();
 

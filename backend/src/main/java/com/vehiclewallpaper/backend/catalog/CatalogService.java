@@ -61,7 +61,8 @@ public class CatalogService {
     private final WallpaperDownloadEventRepository wallpaperDownloadEventRepository;
     private final TransactionTemplate transactionTemplate;
 
-    private volatile CatalogOverviewResponse cachedOverview;
+    private volatile CatalogOverviewResponse cachedNeutralOverview;
+    private volatile CatalogOverviewResponse cachedGlobalOverview;
 
     public CatalogService(CatalogProperties catalogProperties,
                           BrandRepository brandRepository,
@@ -88,12 +89,25 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public CatalogOverviewResponse getOverview(String visitorKey) {
-        CatalogOverviewResponse neutralOverview = getNeutralOverview();
-        return decorateOverview(neutralOverview, createMetricsSnapshot(neutralOverview, visitorKey));
+        CatalogOverviewResponse globalOverview = getGlobalOverview();
+        String normalizedVisitorKey = normalizeValue(visitorKey);
+        if (normalizedVisitorKey.isEmpty()) {
+            return globalOverview;
+        }
+
+        Set<Long> favoriteWallpaperIds = new LinkedHashSet<Long>(
+            wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKey(normalizedVisitorKey)
+        );
+        if (favoriteWallpaperIds.isEmpty()) {
+            return globalOverview;
+        }
+
+        return applyVisitorFavorites(globalOverview, favoriteWallpaperIds);
     }
 
     public void invalidateOverview() {
-        cachedOverview = null;
+        cachedNeutralOverview = null;
+        cachedGlobalOverview = null;
     }
 
     public List<BrandCatalogResponse> getBrands() {
@@ -240,15 +254,15 @@ public class CatalogService {
         WallpaperEntity wallpaper = requireWallpaperBySlug(wallpaperSlug);
         String normalizedVisitorKey = requireVisitorKey(visitorKey);
 
-        if (!wallpaperFavoriteRepository.findByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId()).isPresent()) {
+        if (!wallpaperFavoriteRepository.existsByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId())) {
             WallpaperFavoriteEntity favorite = new WallpaperFavoriteEntity();
             favorite.setWallpaper(wallpaper);
             favorite.setVisitorKey(normalizedVisitorKey);
             wallpaperFavoriteRepository.save(favorite);
         }
 
-        invalidateOverview();
-        return buildInteractionResponse(wallpaper, normalizedVisitorKey, true);
+        invalidateMetricsOverview();
+        return buildInteractionResponse(wallpaper, true);
     }
 
     @Transactional
@@ -256,11 +270,10 @@ public class CatalogService {
         WallpaperEntity wallpaper = requireWallpaperBySlug(wallpaperSlug);
         String normalizedVisitorKey = requireVisitorKey(visitorKey);
 
-        wallpaperFavoriteRepository.findByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId())
-            .ifPresent(wallpaperFavoriteRepository::delete);
+        wallpaperFavoriteRepository.deleteByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId());
 
-        invalidateOverview();
-        return buildInteractionResponse(wallpaper, normalizedVisitorKey, false);
+        invalidateMetricsOverview();
+        return buildInteractionResponse(wallpaper, false);
     }
 
     @Transactional
@@ -273,42 +286,73 @@ public class CatalogService {
         downloadEvent.setVisitorKey(normalizedVisitorKey);
         wallpaperDownloadEventRepository.save(downloadEvent);
 
-        invalidateOverview();
-        boolean favorited = wallpaperFavoriteRepository.findByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId()).isPresent();
-        return buildInteractionResponse(wallpaper, normalizedVisitorKey, favorited);
+        invalidateMetricsOverview();
+        boolean favorited = wallpaperFavoriteRepository.existsByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId());
+        return buildInteractionResponse(wallpaper, favorited);
     }
 
     public synchronized CatalogOverviewResponse refreshCatalog() {
-        CatalogOverviewResponse neutralOverview = refreshNeutralOverview();
-        return decorateOverview(neutralOverview, createMetricsSnapshot(neutralOverview, null));
-    }
-
-    private CatalogOverviewResponse getNeutralOverview() {
-        CatalogOverviewResponse overview = cachedOverview;
-        return overview == null ? refreshNeutralOverview() : overview;
-    }
-
-    private synchronized CatalogOverviewResponse refreshNeutralOverview() {
         if (catalogProperties.isSyncOnStartup()) {
             transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
         }
 
-        cachedOverview = buildNeutralOverview();
-        return cachedOverview;
+        cachedNeutralOverview = buildNeutralOverview();
+        CatalogOverviewResponse neutralOverview = cachedNeutralOverview;
+        cachedGlobalOverview = decorateOverview(neutralOverview, createGlobalMetricsSnapshot(neutralOverview));
+        return cachedGlobalOverview;
+    }
+
+    private CatalogOverviewResponse getNeutralOverview() {
+        CatalogOverviewResponse overview = cachedNeutralOverview;
+        return overview == null ? refreshNeutralOverview() : overview;
+    }
+
+    private CatalogOverviewResponse getGlobalOverview() {
+        CatalogOverviewResponse overview = cachedGlobalOverview;
+        return overview == null ? refreshGlobalOverview() : overview;
+    }
+
+    private synchronized CatalogOverviewResponse refreshNeutralOverview() {
+        if (cachedNeutralOverview != null) {
+            return cachedNeutralOverview;
+        }
+
+        if (catalogProperties.isSyncOnStartup()) {
+            transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
+        }
+
+        cachedNeutralOverview = buildNeutralOverview();
+        return cachedNeutralOverview;
+    }
+
+    private synchronized CatalogOverviewResponse refreshGlobalOverview() {
+        if (cachedGlobalOverview != null) {
+            return cachedGlobalOverview;
+        }
+
+        CatalogOverviewResponse neutralOverview = getNeutralOverview();
+        cachedGlobalOverview = decorateOverview(neutralOverview, createGlobalMetricsSnapshot(neutralOverview));
+        return cachedGlobalOverview;
     }
 
     private CatalogOverviewResponse buildNeutralOverview() {
+        List<BrandEntity> brandsInOrder = brandRepository.findAllByOrderBySortOrderAsc();
+        Map<Long, List<WallpaperResponse>> wallpapersByBrandId = new LinkedHashMap<Long, List<WallpaperResponse>>();
+        for (WallpaperEntity entity : wallpaperRepository.findAllActiveWithBrandOrder()) {
+            Long brandId = entity.getBrand().getId();
+            if (!wallpapersByBrandId.containsKey(brandId)) {
+                wallpapersByBrandId.put(brandId, new ArrayList<WallpaperResponse>());
+            }
+            wallpapersByBrandId.get(brandId).add(toNeutralWallpaperResponse(entity));
+        }
+
         List<BrandCatalogResponse> brands = new ArrayList<BrandCatalogResponse>();
         int totalWallpapers = 0;
 
-        for (BrandEntity brand : brandRepository.findAllByOrderBySortOrderAsc()) {
-            List<WallpaperResponse> wallpapers = new ArrayList<WallpaperResponse>();
-            for (WallpaperEntity entity : wallpaperRepository.findByBrandIdOrderBySortOrderAsc(brand.getId())) {
-                if (entity.isActive()) {
-                    wallpapers.add(toNeutralWallpaperResponse(entity));
-                }
-            }
-
+        for (BrandEntity brand : brandsInOrder) {
+            List<WallpaperResponse> wallpapers = wallpapersByBrandId.containsKey(brand.getId())
+                ? wallpapersByBrandId.get(brand.getId())
+                : Collections.<WallpaperResponse>emptyList();
             totalWallpapers += wallpapers.size();
             String coverImageUrl = wallpapers.isEmpty() ? "" : wallpapers.get(0).getPreviewUrl();
             brands.add(new BrandCatalogResponse(
@@ -368,6 +412,61 @@ public class CatalogService {
             neutralOverview.getTotalWallpapers(),
             metricsSnapshot.getTotalFavorites(),
             metricsSnapshot.getTotalDownloads(),
+            trending,
+            brands
+        );
+    }
+
+    private CatalogOverviewResponse applyVisitorFavorites(CatalogOverviewResponse globalOverview, Set<Long> favoriteWallpaperIds) {
+        if (favoriteWallpaperIds == null || favoriteWallpaperIds.isEmpty()) {
+            return globalOverview;
+        }
+
+        Map<Long, WallpaperResponse> overrides = new LinkedHashMap<Long, WallpaperResponse>();
+        boolean changed = false;
+        List<BrandCatalogResponse> brands = new ArrayList<BrandCatalogResponse>();
+        for (BrandCatalogResponse brand : globalOverview.getBrands()) {
+            boolean brandChanged = false;
+            List<WallpaperResponse> wallpapers = new ArrayList<WallpaperResponse>();
+            for (WallpaperResponse wallpaper : brand.getWallpapers()) {
+                WallpaperResponse updatedWallpaper = withFavoritedState(wallpaper, favoriteWallpaperIds, overrides);
+                brandChanged = brandChanged || updatedWallpaper != wallpaper;
+                wallpapers.add(updatedWallpaper);
+            }
+
+            if (brandChanged) {
+                changed = true;
+                brands.add(new BrandCatalogResponse(
+                    brand.getSlug(),
+                    brand.getName(),
+                    brand.getDisplayName(),
+                    brand.getFolderName(),
+                    brand.getWallpaperCount(),
+                    brand.getCoverImageUrl(),
+                    wallpapers
+                ));
+            } else {
+                brands.add(brand);
+            }
+        }
+
+        List<WallpaperResponse> trending = new ArrayList<WallpaperResponse>();
+        for (WallpaperResponse wallpaper : globalOverview.getTrendingWallpapers()) {
+            WallpaperResponse updatedWallpaper = withFavoritedState(wallpaper, favoriteWallpaperIds, overrides);
+            changed = changed || updatedWallpaper != wallpaper;
+            trending.add(updatedWallpaper);
+        }
+
+        if (!changed) {
+            return globalOverview;
+        }
+
+        return new CatalogOverviewResponse(
+            globalOverview.getGeneratedAt(),
+            globalOverview.getTotalBrands(),
+            globalOverview.getTotalWallpapers(),
+            globalOverview.getTotalFavorites(),
+            globalOverview.getTotalDownloads(),
             trending,
             brands
         );
@@ -437,7 +536,7 @@ public class CatalogService {
         );
     }
 
-    private CatalogMetricsSnapshot createMetricsSnapshot(CatalogOverviewResponse overview, String visitorKey) {
+    private CatalogMetricsSnapshot createGlobalMetricsSnapshot(CatalogOverviewResponse overview) {
         List<Long> wallpaperIds = new ArrayList<Long>();
         for (BrandCatalogResponse brand : overview.getBrands()) {
             for (WallpaperResponse wallpaper : brand.getWallpapers()) {
@@ -451,16 +550,13 @@ public class CatalogService {
         Map<Long, Long> downloadCounts = wallpaperIds.isEmpty()
             ? Collections.<Long, Long>emptyMap()
             : aggregateCounts(wallpaperDownloadEventRepository.countByWallpaperIds(wallpaperIds));
-        Set<Long> favoriteWallpaperIds = normalizeValue(visitorKey).isEmpty()
-            ? Collections.<Long>emptySet()
-            : new LinkedHashSet<Long>(wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKey(visitorKey));
 
         return new CatalogMetricsSnapshot(
             wallpaperFavoriteRepository.count(),
             wallpaperDownloadEventRepository.count(),
             favoriteCounts,
             downloadCounts,
-            favoriteWallpaperIds
+            Collections.<Long>emptySet()
         );
     }
 
@@ -570,9 +666,7 @@ public class CatalogService {
     }
 
     private WallpaperInteractionResponse buildInteractionResponse(WallpaperEntity wallpaper,
-                                                                  String visitorKey,
                                                                   boolean favorited) {
-        String normalizedVisitorKey = normalizeValue(visitorKey);
         long favoriteCount = wallpaperFavoriteRepository.countByWallpaperIds(Collections.singletonList(wallpaper.getId()))
             .stream()
             .findFirst()
@@ -584,18 +678,46 @@ public class CatalogService {
             .map(row -> ((Number) row[1]).longValue())
             .orElse(0L);
 
-        boolean finalFavorited = favorited;
-        if (!normalizedVisitorKey.isEmpty()) {
-            finalFavorited = wallpaperFavoriteRepository.findByVisitorKeyAndWallpaperId(normalizedVisitorKey, wallpaper.getId()).isPresent();
-        }
-
         return new WallpaperInteractionResponse(
             wallpaper.getSlug(),
-            finalFavorited,
+            favorited,
             favoriteCount,
             downloadCount,
             calculateHotScore(favoriteCount, downloadCount)
         );
+    }
+
+    private WallpaperResponse withFavoritedState(WallpaperResponse wallpaper,
+                                                 Set<Long> favoriteWallpaperIds,
+                                                 Map<Long, WallpaperResponse> overrides) {
+        boolean shouldBeFavorited = favoriteWallpaperIds.contains(wallpaper.getWallpaperId());
+        if (wallpaper.isFavorited() == shouldBeFavorited) {
+            return wallpaper;
+        }
+
+        WallpaperResponse existingOverride = overrides.get(wallpaper.getWallpaperId());
+        if (existingOverride != null) {
+            return existingOverride;
+        }
+
+        WallpaperResponse overridden = new WallpaperResponse(
+            wallpaper.getId(),
+            wallpaper.getWallpaperId(),
+            wallpaper.getBrandSlug(),
+            wallpaper.getTitle(),
+            wallpaper.getFileName(),
+            wallpaper.getPreviewUrl(),
+            wallpaper.getFullUrl(),
+            wallpaper.getDownloadUrl(),
+            wallpaper.getSortOrder(),
+            wallpaper.getFavoriteCount(),
+            wallpaper.getDownloadCount(),
+            wallpaper.getHotScore(),
+            shouldBeFavorited,
+            wallpaper.getCreatedAt()
+        );
+        overrides.put(wallpaper.getWallpaperId(), overridden);
+        return overridden;
     }
 
     private double calculateHotScore(long favoriteCount, long downloadCount) {
@@ -624,6 +746,10 @@ public class CatalogService {
 
     private boolean containsIgnoreCase(String value, String query) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(query);
+    }
+
+    private void invalidateMetricsOverview() {
+        cachedGlobalOverview = null;
     }
 
     private void syncCatalogToDatabase() {
