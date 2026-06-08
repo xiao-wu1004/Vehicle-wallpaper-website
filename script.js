@@ -1327,11 +1327,20 @@
     }
 
     async function triggerFileDownload(url, fileName) {
-        const response = await fetch(url, {
-            headers: buildApiHeaders({
-                Accept: "*/*"
-            })
-        });
+        let response = null;
+
+        try {
+            response = await fetch(url, {
+                headers: buildApiHeaders({
+                    Accept: "*/*"
+                })
+            });
+        } catch (error) {
+            const networkError = new Error("暂时无法连接下载服务，请稍后重试。");
+            networkError.status = 0;
+            networkError.cause = error;
+            throw networkError;
+        }
 
         if (!response.ok) {
             let payload = null;

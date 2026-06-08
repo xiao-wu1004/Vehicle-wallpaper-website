@@ -18,6 +18,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -147,6 +148,21 @@ class UserAuthControllerTest {
             .andExpect(status().isOk())
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")))
             .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString(target.fileName)));
+    }
+
+    @Test
+    void shouldAllowCorsPreflightForWallpaperDownloads() throws Exception {
+        DownloadTarget target = fetchFirstDownloadTarget();
+
+        mockMvc.perform(options("/download/{brand}/{filename}", target.brandSlug, target.fileName)
+                .header(HttpHeaders.ORIGIN, "https://vehicle-wallpaper-website.example")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,x-visitor-key"))
+            .andExpect(status().isOk())
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://vehicle-wallpaper-website.example"))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, containsString("GET")))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, containsString("authorization")))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, containsString(HttpHeaders.CONTENT_DISPOSITION)));
     }
 
     private String registerAndExtractAccessToken(String displayName, String email, String password) throws Exception {
