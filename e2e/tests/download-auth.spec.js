@@ -10,6 +10,20 @@ function mockLocalApiBase(page) {
   });
 }
 
+async function mockNativeSavePicker(page) {
+  await page.addInitScript(() => {
+    window.__downloadedBytes = 0;
+    window.showSaveFilePicker = async () => ({
+      createWritable: async () => new WritableStream({
+        write(chunk) {
+          const byteLength = chunk && typeof chunk.byteLength === 'number' ? chunk.byteLength : 0;
+          window.__downloadedBytes += byteLength;
+        },
+      }),
+    });
+  });
+}
+
 async function registerAndLogin(page) {
   const email = `download-${Date.now()}@test.wallpaper.local`;
 
@@ -25,6 +39,7 @@ async function registerAndLogin(page) {
 
 test.describe('download auth flow', () => {
   test('logged-in download uses authenticated fetch and does not navigate to JSON error page', async ({ page }) => {
+    await mockNativeSavePicker(page);
     await mockLocalApiBase(page);
     await registerAndLogin(page);
 
@@ -46,6 +61,7 @@ test.describe('download auth flow', () => {
     await downloadResponsePromise;
 
     expect(downloadRequest.headers().authorization).toMatch(/^Bearer /i);
+    await expect.poll(() => page.evaluate(() => window.__downloadedBytes)).toBeGreaterThan(0);
     await expect(page).toHaveURL(/\/main\.html$/);
     await expect(page.locator('#myModal')).toHaveClass(/show/);
     await expect(page.locator('body')).not.toContainText('"status":401');

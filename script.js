@@ -1326,7 +1326,73 @@
         setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
     }
 
+    function inferDownloadMimeType(fileName) {
+        const normalizedFileName = normalizeValue(fileName).toLowerCase();
+        if (normalizedFileName.endsWith(".webp")) {
+            return "image/webp";
+        }
+        if (normalizedFileName.endsWith(".png")) {
+            return "image/png";
+        }
+        if (normalizedFileName.endsWith(".jpg") || normalizedFileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        return "application/octet-stream";
+    }
+
+    function canUseNativeStreamDownload() {
+        return window.isSecureContext
+            && typeof window.showSaveFilePicker === "function"
+            && typeof window.WritableStream === "function";
+    }
+
+    function isUserCancelledDownloadError(error) {
+        return Boolean(error && (error.name === "AbortError" || error.code === 20));
+    }
+
+    async function triggerAnchorDownload(blob, fileName) {
+        const objectUrl = window.URL.createObjectURL(blob);
+
+        try {
+            var anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = fileName;
+            anchor.style.display = "none";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        } finally {
+            window.setTimeout(function () {
+                window.URL.revokeObjectURL(objectUrl);
+            }, 1000);
+        }
+    }
+
     async function triggerFileDownload(url, fileName) {
+        const normalizedFileName = normalizeValue(fileName) || "wallpaper.jpg";
+        let fileHandle = null;
+
+        if (canUseNativeStreamDownload()) {
+            try {
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: normalizedFileName,
+                    types: [
+                        {
+                            description: "图片文件",
+                            accept: {
+                                [inferDownloadMimeType(normalizedFileName)]: ["." + normalizedFileName.split(".").pop().toLowerCase()]
+                            }
+                        }
+                    ]
+                });
+            } catch (error) {
+                if (isUserCancelledDownloadError(error)) {
+                    return { cancelled: true };
+                }
+                throw error;
+            }
+        }
+
         let response = null;
 
         try {
@@ -1362,22 +1428,24 @@
             throw error;
         }
 
-        const blob = await response.blob();
-        const objectUrl = window.URL.createObjectURL(blob);
-
-        try {
-            var anchor = document.createElement("a");
-            anchor.href = objectUrl;
-            anchor.download = fileName;
-            anchor.style.display = "none";
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-        } finally {
-            window.setTimeout(function () {
-                window.URL.revokeObjectURL(objectUrl);
-            }, 1000);
+        if (fileHandle && response.body) {
+            const writable = await fileHandle.createWritable();
+            try {
+                await response.body.pipeTo(writable);
+            } catch (error) {
+                if (typeof writable.abort === "function") {
+                    await writable.abort().catch(function () {
+                        return null;
+                    });
+                }
+                throw error;
+            }
+            return { cancelled: false, streamed: true };
         }
+
+        const blob = await response.blob();
+        await triggerAnchorDownload(blob, normalizedFileName);
+        return { cancelled: false, streamed: false };
     }
 
     function syncDownloadButtonState() {
@@ -2770,7 +2838,10 @@
 
             setButtonBusy(downloadBtn, true);
             triggerFileDownload(href, fileName)
-                .then(function () {
+                .then(function (result) {
+                    if (result && result.cancelled) {
+                        return;
+                    }
                     recordDownload(downloadBtn.dataset.wallpaperId);
                 })
                 .catch(function (error) {
