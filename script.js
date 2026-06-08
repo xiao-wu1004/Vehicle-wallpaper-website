@@ -1326,17 +1326,49 @@
         setFormStatus(registerForm && registerForm.querySelector(".form-status"), "", "");
     }
 
-    function triggerFileDownload(url, fileName) {
-        // 不用 fetch，纯 <a download> 触发浏览器原生下载。
-        // /download 端点已带 Content-Disposition: attachment，浏览器自动下载不预览。
-        var anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = fileName;
-        anchor.style.display = "none";
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        return Promise.resolve();
+    async function triggerFileDownload(url, fileName) {
+        const response = await fetch(url, {
+            headers: buildApiHeaders({
+                Accept: "*/*"
+            })
+        });
+
+        if (!response.ok) {
+            let payload = null;
+            const responseType = normalizeValue(response.headers.get("content-type")).toLowerCase();
+
+            if (responseType.indexOf("application/json") >= 0) {
+                payload = await response.json().catch(function () {
+                    return null;
+                });
+            }
+
+            const error = new Error(
+                (payload && payload.message)
+                || (response.status === 401 ? "下载功能需要登录。" : "")
+                || (response.status === 404 ? "图片资源不存在或已下线。" : "")
+                || "下载失败，请稍后重试。"
+            );
+            error.status = response.status;
+            throw error;
+        }
+
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+
+        try {
+            var anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = fileName;
+            anchor.style.display = "none";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        } finally {
+            window.setTimeout(function () {
+                window.URL.revokeObjectURL(objectUrl);
+            }, 1000);
+        }
     }
 
     function syncDownloadButtonState() {
@@ -2727,6 +2759,7 @@
                 return;
             }
 
+            setButtonBusy(downloadBtn, true);
             triggerFileDownload(href, fileName)
                 .then(function () {
                     recordDownload(downloadBtn.dataset.wallpaperId);
@@ -2737,7 +2770,14 @@
                         promptLogin(error.message || "下载功能需要登录，现在去登录？");
                         return;
                     }
+                    if (error && error.status === 404) {
+                        window.alert(error.message || "图片资源不存在或已下线。");
+                        return;
+                    }
                     window.alert((error && error.message) || "下载失败，请稍后重试。");
+                })
+                .finally(function () {
+                    setButtonBusy(downloadBtn, false);
                 });
         });
     }
