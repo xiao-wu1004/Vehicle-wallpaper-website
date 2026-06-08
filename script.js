@@ -1396,11 +1396,7 @@
         let response = null;
 
         try {
-            response = await fetch(url, {
-                headers: buildApiHeaders({
-                    Accept: "*/*"
-                })
-            });
+            response = await fetch(url);
         } catch (error) {
             const networkError = new Error("暂时无法连接下载服务，请稍后重试。");
             networkError.status = 0;

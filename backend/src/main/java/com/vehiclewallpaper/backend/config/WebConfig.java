@@ -43,6 +43,11 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/download/**")
             .allowedOriginPatterns("*")
             .allowedMethods("GET", "OPTIONS")
+            .allowedHeaders("*");
+
+        registry.addMapping("/download/**")
+            .allowedOriginPatterns("*")
+            .allowedMethods("GET", "OPTIONS")
             .allowedHeaders("*")
             .exposedHeaders(HttpHeaders.CONTENT_DISPOSITION, HttpHeaders.CONTENT_TYPE);
     }
