@@ -1368,80 +1368,17 @@
         }
     }
 
-    async function triggerFileDownload(url, fileName) {
-        const normalizedFileName = normalizeValue(fileName) || "wallpaper.jpg";
-        let fileHandle = null;
-
-        if (canUseNativeStreamDownload()) {
-            try {
-                fileHandle = await window.showSaveFilePicker({
-                    suggestedName: normalizedFileName,
-                    types: [
-                        {
-                            description: "图片文件",
-                            accept: {
-                                [inferDownloadMimeType(normalizedFileName)]: ["." + normalizedFileName.split(".").pop().toLowerCase()]
-                            }
-                        }
-                    ]
-                });
-            } catch (error) {
-                if (isUserCancelledDownloadError(error)) {
-                    return { cancelled: true };
-                }
-                throw error;
-            }
-        }
-
-        let response = null;
-
-        try {
-            response = await fetch(url);
-        } catch (error) {
-            const networkError = new Error("暂时无法连接下载服务，请稍后重试。");
-            networkError.status = 0;
-            networkError.cause = error;
-            throw networkError;
-        }
-
-        if (!response.ok) {
-            let payload = null;
-            const responseType = normalizeValue(response.headers.get("content-type")).toLowerCase();
-
-            if (responseType.indexOf("application/json") >= 0) {
-                payload = await response.json().catch(function () {
-                    return null;
-                });
-            }
-
-            const error = new Error(
-                (payload && payload.message)
-                || (response.status === 401 ? "下载功能需要登录。" : "")
-                || (response.status === 404 ? "图片资源不存在或已下线。" : "")
-                || "下载失败，请稍后重试。"
-            );
-            error.status = response.status;
-            throw error;
-        }
-
-        if (fileHandle && response.body) {
-            const writable = await fileHandle.createWritable();
-            try {
-                await response.body.pipeTo(writable);
-            } catch (error) {
-                if (typeof writable.abort === "function") {
-                    await writable.abort().catch(function () {
-                        return null;
-                    });
-                }
-                throw error;
-            }
-            return { cancelled: false, streamed: true };
-        }
-
-        const blob = await response.blob();
-        await triggerAnchorDownload(blob, normalizedFileName);
-        return { cancelled: false, streamed: false };
+    function triggerFileDownload(url, fileName) {
+        // 直接 <a download> 触发下载，不弹保存框
+        // /download 端点返回 Content-Disposition: attachment，浏览器静默下载到默认目录
+        var anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        return Promise.resolve({ cancelled: false });
     }
 
     function syncDownloadButtonState() {
