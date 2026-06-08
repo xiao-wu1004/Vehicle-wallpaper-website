@@ -24,6 +24,12 @@ public interface WallpaperFavoriteRepository extends JpaRepository<WallpaperFavo
     List<WallpaperFavoriteEntity> findRecentByVisitorKeyWithWallpaper(@Param("visitorKey") String visitorKey,
                                                                       Pageable pageable);
 
+    @Query("select favorite from WallpaperFavoriteEntity favorite "
+        + "join fetch favorite.wallpaper wallpaper "
+        + "join fetch wallpaper.brand brand "
+        + "where favorite.visitorKey = :visitorKey order by favorite.createdAt desc")
+    List<WallpaperFavoriteEntity> findAllByVisitorKeyWithWallpaper(@Param("visitorKey") String visitorKey);
+
     List<WallpaperFavoriteEntity> findAllByWallpaperBrandId(Long brandId);
 
     long countByVisitorKey(String visitorKey);

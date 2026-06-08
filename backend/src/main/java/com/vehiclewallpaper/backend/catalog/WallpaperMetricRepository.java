@@ -18,6 +18,20 @@ public interface WallpaperMetricRepository extends JpaRepository<WallpaperMetric
 
     List<WallpaperMetricEntity> findAllByWallpaperIdIn(Collection<Long> wallpaperIds);
 
+    @Query("select coalesce(sum(metric.favoriteCount), 0) from WallpaperMetricEntity metric")
+    long sumFavoriteCount();
+
+    @Query("select coalesce(sum(metric.downloadCount), 0) from WallpaperMetricEntity metric")
+    long sumDownloadCount();
+
+    @Query(value = "select metric.wallpaper_id from wallpaper_metrics metric "
+        + "join wallpapers wallpaper on wallpaper.id = metric.wallpaper_id "
+        + "where wallpaper.active = true "
+        + "order by (metric.favorite_count * 4.0 + metric.download_count * 1.5) desc, "
+        + "metric.download_count desc, metric.favorite_count desc, wallpaper.created_at desc, wallpaper.id asc "
+        + "limit :limit", nativeQuery = true)
+    List<Long> findTopActiveWallpaperIds(@Param("limit") int limit);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update wallpaper_metrics "
         + "set favorite_count = case "

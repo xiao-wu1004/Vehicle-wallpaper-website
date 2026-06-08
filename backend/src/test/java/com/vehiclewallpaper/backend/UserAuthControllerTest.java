@@ -11,6 +11,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -186,7 +189,10 @@ class UserAuthControllerTest {
         JsonNode firstWallpaper = overviewJson.get("brands").get(0).get("wallpapers").get(0);
         String fullUrl = firstWallpaper.get("fullUrl").asText();
         String[] segments = fullUrl.split("/");
-        return new DownloadTarget(segments[2], segments[3]);
+        return new DownloadTarget(
+            URLDecoder.decode(segments[2], StandardCharsets.UTF_8.name()),
+            URLDecoder.decode(segments[3], StandardCharsets.UTF_8.name())
+        );
     }
 
     private static final class DownloadTarget {

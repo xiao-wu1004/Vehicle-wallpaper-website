@@ -100,14 +100,30 @@
     let profileRefreshTimer = 0;
     let authRefreshTimer = 0;
     let profileRequestPromise = null;
-    let feedbackHighlightsRequestPromise = null;
-    const initialGalleryBrandSectionMarkup = gallerySection
-        ? Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).map(function (section) {
-            return section.outerHTML;
-        })
-        : [];
-    const initialGalleryBrandCount = initialGalleryBrandSectionMarkup.length;
-    let lastCatalogRenderMode = initialGalleryBrandCount ? "static" : "";
+    const staticGuestBrandSummaries = Object.keys(brandNameFallbacks).map(function (slug) {
+        return {
+            slug: slug,
+            displayName: brandNameFallbacks[slug],
+            wallpaperCount: 0,
+            coverImageUrl: ""
+        };
+    });
+    const feedbackFeatureVersion = "20260608-1";
+    const deferredFeatureState = {
+        feedbackHighlights: null,
+        feedbackHighlightsPromise: null
+    };
+    const catalogRenderState = {
+        token: 0,
+        frameId: 0,
+        queue: [],
+        pendingIds: Object.create(null)
+    };
+    const lastSuccessfulCatalogByMode = {
+        guest: null,
+        authenticated: null
+    };
+    let lastCatalogRenderMode = "";
     let guestCatalogSummary = null;
 
     function normalizeValue(value) {
@@ -616,6 +632,7 @@
             return false;
         }
 
+        ensureBrandSectionRendered(hash);
         const target = document.querySelector(hash);
         if (!target) {
             return false;
@@ -1101,10 +1118,6 @@
         return statusElement;
     }
 
-    function legacyFriendlyAuthError(message) {
-        return friendlyAuthError(message, null);
-    }
-
     function firstFieldError(fieldErrors) {
         if (!fieldErrors || typeof fieldErrors !== "object") {
             return "";
@@ -1388,18 +1401,13 @@
         });
     }
 
-    function renderFeedbackHighlights(items) {
-        if (!feedbackBlockquote || !Array.isArray(items) || items.length === 0) {
-            return;
+    function buildFeatureAssetUrl(fileName, version) {
+        const normalizedFileName = normalizeValue(fileName);
+        const normalizedVersion = normalizeValue(version);
+        if (!normalizedFileName) {
+            return "";
         }
-
-        feedbackBlockquote.innerHTML = "";
-
-        items.slice(0, 2).forEach(function (item) {
-            const paragraph = document.createElement("p");
-            paragraph.textContent = "\"" + displayText(item.message, "这条精选反馈还没有正文。") + "\" - " + displayText(item.name, "匿名用户");
-            feedbackBlockquote.appendChild(paragraph);
-        });
+        return normalizedVersion ? normalizedFileName + "?v=" + normalizedVersion : normalizedFileName;
     }
 
     function loadFeedbackHighlights(forceRefresh) {
@@ -1407,39 +1415,26 @@
             return Promise.resolve([]);
         }
 
-        if (!forceRefresh && deferredLoadState.feedbackLoaded) {
-            return Promise.resolve([]);
+        if (deferredFeatureState.feedbackHighlights) {
+            return deferredFeatureState.feedbackHighlights.load(forceRefresh);
         }
 
-        if (feedbackHighlightsRequestPromise) {
-            return feedbackHighlightsRequestPromise;
+        if (!deferredFeatureState.feedbackHighlightsPromise) {
+            deferredFeatureState.feedbackHighlightsPromise = import(buildFeatureAssetUrl("./feedback-highlights.js", feedbackFeatureVersion))
+                .then(function (module) {
+                    deferredFeatureState.feedbackHighlights = module.createFeedbackHighlightsController({
+                        feedbackBlockquote: feedbackBlockquote,
+                        buildApiUrl: buildApiUrl,
+                        displayText: displayText,
+                        deferredLoadState: deferredLoadState
+                    });
+                    return deferredFeatureState.feedbackHighlights;
+                });
         }
 
-        feedbackHighlightsRequestPromise = fetch(buildApiUrl("/api/feedback/highlights"), {
-            headers: {
-                Accept: "application/json"
-            }
-        })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error("Failed to load feedback highlights.");
-                }
-                return response.json();
-            })
-            .then(function (items) {
-                deferredLoadState.feedbackLoaded = true;
-                renderFeedbackHighlights(items);
-                return items;
-            })
-            .catch(function () {
-                // Keep the existing fallback quotes when the backend is unavailable.
-                return [];
-            })
-            .finally(function () {
-                feedbackHighlightsRequestPromise = null;
-            });
-
-        return feedbackHighlightsRequestPromise;
+        return deferredFeatureState.feedbackHighlightsPromise.then(function (controller) {
+            return controller.load(forceRefresh);
+        });
     }
 
     function createBrandMenuLink(hash, label) {
@@ -1508,8 +1503,12 @@
             return;
         }
 
-        Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery")).forEach(function (section) {
-            section.parentNode.removeChild(section);
+        cancelBrandSectionRender();
+
+        Array.prototype.slice.call(gallerySection.querySelectorAll(".brand-gallery, .catalog-fallback-state")).forEach(function (section) {
+            if (section.parentNode) {
+                section.parentNode.removeChild(section);
+            }
         });
     }
 
@@ -1524,23 +1523,143 @@
         }
     }
 
-    function restoreStaticCatalogSections() {
-        if (!gallerySection || !initialGalleryBrandSectionMarkup.length) {
+    function buildStaticGuestFallbackSummary() {
+        return {
+            totalBrands: staticGuestBrandSummaries.length,
+            totalWallpapers: 0,
+            totalFavorites: 0,
+            totalDownloads: 0,
+            brands: staticGuestBrandSummaries.map(function (brand) {
+                return Object.assign({}, brand);
+            }),
+            trendingWallpapers: []
+        };
+    }
+
+    function cancelBrandSectionRender() {
+        catalogRenderState.token += 1;
+        catalogRenderState.queue = [];
+        catalogRenderState.pendingIds = Object.create(null);
+        if (catalogRenderState.frameId) {
+            window.cancelAnimationFrame(catalogRenderState.frameId);
+            catalogRenderState.frameId = 0;
+        }
+    }
+
+    function renderCatalogUnavailableState(title, message) {
+        if (!gallerySection) {
             return;
         }
 
         clearDynamicCatalogSections();
         removeGalleryLoginGate();
 
-        initialGalleryBrandSectionMarkup.forEach(function (markup) {
-            const template = document.createElement("template");
-            template.innerHTML = markup;
-            if (template.content.firstElementChild) {
-                gallerySection.appendChild(template.content.firstElementChild);
-            }
-        });
+        const container = document.createElement("div");
+        container.className = "catalog-fallback-state";
 
-        lastCatalogRenderMode = "static";
+        const heading = document.createElement("h4");
+        heading.textContent = title || "壁纸库暂时不可用";
+
+        const copy = document.createElement("p");
+        copy.textContent = message || "后端服务暂时没有返回最新壁纸库，请稍后刷新重试。";
+
+        container.appendChild(heading);
+        container.appendChild(copy);
+        gallerySection.appendChild(container);
+        lastCatalogRenderMode = "fallback";
+    }
+
+    function createBrandSection(brand) {
+        const brandName = resolveBrandName(brand);
+        const section = document.createElement("div");
+        section.id = brand.slug;
+        section.className = "brand-gallery";
+
+        const heading = document.createElement("h4");
+        heading.textContent = brandName;
+        section.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "image-grid";
+
+        if (!Array.isArray(brand.wallpapers) || brand.wallpapers.length === 0) {
+            const emptyState = document.createElement("p");
+            emptyState.className = "brand-gallery-empty";
+            emptyState.textContent = "这个品牌的公开壁纸还没有上线。";
+            section.appendChild(emptyState);
+            return section;
+        }
+
+        brand.wallpapers.forEach(function (wallpaper, index) {
+            grid.appendChild(createWallpaperCard(brandName, wallpaper, index));
+        });
+        section.appendChild(grid);
+        return section;
+    }
+
+    function prioritizeBrandQueue(hash) {
+        const targetId = normalizeValue(hash).replace(/^#/, "");
+        if (!targetId || !catalogRenderState.pendingIds[targetId]) {
+            return;
+        }
+
+        const targetIndex = catalogRenderState.queue.findIndex(function (brand) {
+            return normalizeValue(brand.slug) === targetId;
+        });
+        if (targetIndex > 0) {
+            const prioritizedBrand = catalogRenderState.queue.splice(targetIndex, 1)[0];
+            catalogRenderState.queue.unshift(prioritizedBrand);
+        }
+    }
+
+    function appendBrandSectionBatch(token, batchSize) {
+        if (!gallerySection || catalogRenderState.token !== token) {
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        let renderedCount = 0;
+        while (catalogRenderState.queue.length && renderedCount < batchSize) {
+            const brand = catalogRenderState.queue.shift();
+            if (!brand) {
+                break;
+            }
+            delete catalogRenderState.pendingIds[normalizeValue(brand.slug)];
+            fragment.appendChild(createBrandSection(brand));
+            renderedCount += 1;
+        }
+
+        if (fragment.childNodes.length) {
+            gallerySection.appendChild(fragment);
+        }
+
+        if (!catalogRenderState.queue.length) {
+            lastCatalogRenderMode = "catalog";
+            return;
+        }
+
+        catalogRenderState.frameId = window.requestAnimationFrame(function () {
+            catalogRenderState.frameId = 0;
+            appendBrandSectionBatch(token, 2);
+        });
+    }
+
+    function ensureBrandSectionRendered(hash) {
+        const targetId = normalizeValue(hash).replace(/^#/, "");
+        if (!targetId || !catalogRenderState.pendingIds[targetId]) {
+            return false;
+        }
+
+        prioritizeBrandQueue(hash);
+        while (catalogRenderState.pendingIds[targetId] && catalogRenderState.queue.length) {
+            if (catalogRenderState.frameId) {
+                window.cancelAnimationFrame(catalogRenderState.frameId);
+                catalogRenderState.frameId = 0;
+            }
+            appendBrandSectionBatch(catalogRenderState.token, 2);
+        }
+
+        return !catalogRenderState.pendingIds[targetId];
     }
 
     function focusAccountForAuth(mode) {
@@ -1576,13 +1695,15 @@
         const safeOverview = overview && typeof overview === "object" ? overview : {};
         const safeBrands = Array.isArray(brands) && brands.length
             ? brands
-            : (Array.isArray(safeOverview.brands) ? safeOverview.brands : []);
+            : (Array.isArray(safeOverview.brands) && safeOverview.brands.length
+                ? safeOverview.brands
+                : staticGuestBrandSummaries);
         const safeTrendingWallpapers = Array.isArray(trendingWallpapers) && trendingWallpapers.length
             ? trendingWallpapers
             : (Array.isArray(safeOverview.trendingWallpapers) ? safeOverview.trendingWallpapers : []);
 
         return {
-            totalBrands: safeOverview.totalBrands || safeBrands.length || initialGalleryBrandCount || 12,
+            totalBrands: safeOverview.totalBrands || safeBrands.length || staticGuestBrandSummaries.length,
             totalWallpapers: safeOverview.totalWallpapers || 0,
             totalFavorites: safeOverview.totalFavorites || 0,
             totalDownloads: safeOverview.totalDownloads || 0,
@@ -1736,11 +1857,8 @@
             return;
         }
 
-        const summary = guestCatalogSummary || buildGuestCatalogSummary({
-            totalBrands: initialGalleryBrandCount || 12,
-            totalWallpapers: 0
-        }, [], []);
-        const totalBrands = summary.totalBrands || summary.brands.length || initialGalleryBrandCount || 12;
+        const summary = guestCatalogSummary || buildStaticGuestFallbackSummary();
+        const totalBrands = summary.totalBrands || summary.brands.length || staticGuestBrandSummaries.length;
         const totalWallpapers = summary.totalWallpapers || 0;
         const previewItems = Array.isArray(summary.trendingWallpapers) ? summary.trendingWallpapers.slice(0, 4) : [];
         const previewCount = previewItems.length;
@@ -1912,36 +2030,17 @@
 
         clearDynamicCatalogSections();
         removeGalleryLoginGate();
+        cancelBrandSectionRender();
 
-        brands.forEach(function (brand) {
-            const brandName = resolveBrandName(brand);
-            const section = document.createElement("div");
-            section.id = brand.slug;
-            section.className = "brand-gallery";
-
-            const heading = document.createElement("h4");
-            heading.textContent = brandName;
-            section.appendChild(heading);
-
-            const grid = document.createElement("div");
-            grid.className = "image-grid";
-
-            if (!Array.isArray(brand.wallpapers) || brand.wallpapers.length === 0) {
-                const emptyState = document.createElement("p");
-                emptyState.className = "brand-gallery-empty";
-                emptyState.textContent = "这个品牌的公开壁纸还没有上线。";
-                section.appendChild(emptyState);
-            } else {
-                brand.wallpapers.forEach(function (wallpaper, index) {
-                    grid.appendChild(createWallpaperCard(brandName, wallpaper, index));
-                });
-                section.appendChild(grid);
-            }
-
-            gallerySection.appendChild(section);
+        catalogRenderState.token += 1;
+        catalogRenderState.queue = Array.isArray(brands) ? brands.slice() : [];
+        catalogRenderState.pendingIds = Object.create(null);
+        catalogRenderState.queue.forEach(function (brand) {
+            catalogRenderState.pendingIds[normalizeValue(brand.slug)] = true;
         });
 
-        lastCatalogRenderMode = "catalog";
+        prioritizeBrandQueue(window.location.hash);
+        appendBrandSectionBatch(catalogRenderState.token, 2);
     }
 
     function buildCarouselCandidates(brands, trendingWallpapers) {
@@ -2286,7 +2385,6 @@
         };
 
         syncAccountUi(buildAuthenticatedProfileFallback());
-        restoreStaticCatalogSections();
         resetPasswordVisibility();
 
         if (loginForm) {
@@ -2412,6 +2510,7 @@
             : [];
         const authenticated = Boolean(authState.accessToken);
         guestCatalogSummary = buildGuestCatalogSummary(overview, brands, trendingWallpapers);
+        lastSuccessfulCatalogByMode[authenticated ? "authenticated" : "guest"] = overview;
 
         dynamicBrandHashes = new Set(["#brands"]);
         brands.forEach(function (brand) {
@@ -2451,17 +2550,21 @@
         return requestJson(endpoint)
             .then(renderCatalog)
             .catch(function () {
+                const cachedOverview = lastSuccessfulCatalogByMode[authenticated ? "authenticated" : "guest"];
+                if (cachedOverview) {
+                    renderCatalog(cachedOverview);
+                    setCatalogStatus(authenticated ? "完整壁纸库暂时不可刷新，当前保留上一次加载结果。" : "首页摘要暂时不可刷新，当前保留上一次加载结果。", authenticated ? "error" : "notice");
+                    return;
+                }
+
                 if (authenticated) {
-                    restoreStaticCatalogSections();
-                    setCatalogStatus("暂时无法从后端加载最新壁纸库，当前显示静态备用内容。", "error");
+                    renderCatalogUnavailableState("会员壁纸库暂时不可用", "后端暂时没有返回完整壁纸库，请稍后刷新重试。");
+                    setCatalogStatus("完整壁纸库暂时不可用，请稍后刷新重试。", "error");
                 } else {
-                    guestCatalogSummary = buildGuestCatalogSummary({
-                        totalBrands: initialGalleryBrandCount || 12,
-                        totalWallpapers: 0
-                    }, [], []);
+                    guestCatalogSummary = buildStaticGuestFallbackSummary();
                     renderGalleryLoginGate(guestCatalogSummary, guestCatalogSummary.brands);
                     renderGuestProfilePanel();
-                    setCatalogStatus("首页摘要暂时不可用，当前先展示静态预览。", "notice");
+                    setCatalogStatus("首页摘要暂时不可用，当前先展示轻量兜底内容。", "notice");
                 }
                 highlightCurrentNav();
                 updateBackToHomeButton();
@@ -2781,6 +2884,11 @@
 
             if (this === loginEmailInput || this === registerEmailInput) {
                 syncAuthEmails(this);
+                return;
+            }
+
+            if (this === registerPasswordInput) {
+                syncPasswordHintState(this.value);
             }
         });
     });
@@ -2992,165 +3100,6 @@
                 setButtonBusy(enhancedRegisterSubmitButton, false);
             }
         }, true);
-    }
-
-    if (loginForm) {
-        const loginSubmitButton = loginForm.querySelector(".form-submit");
-        const loginStatus = ensureFormStatusElement(loginForm);
-        const loginFieldMap = {
-            email: loginEmailInput,
-            password: loginPasswordInput
-        };
-
-        loginForm.addEventListener("submit", async function (event) {
-            event.preventDefault();
-            setFormStatus(loginStatus, "", "");
-            applyAuthFieldErrors(null, loginFieldMap);
-
-            const normalizedLoginEmail = loginEmailInput.value.trim();
-            const normalizedLoginPassword = loginPasswordInput.value;
-
-            if (!normalizedLoginEmail || !normalizedLoginPassword.trim()) {
-                setInputInvalid(loginEmailInput, !normalizedLoginEmail);
-                setInputInvalid(loginPasswordInput, !normalizedLoginPassword.trim());
-                setFormStatus(loginStatus, "请输入邮箱和密码。", "error");
-                return;
-            }
-
-            if (!isValidEmailAddress(normalizedLoginEmail)) {
-                setInputInvalid(loginEmailInput, true);
-                setFormStatus(loginStatus, "请输入有效的邮箱地址。", "error");
-                return;
-            }
-
-            if (normalizedLoginPassword.length < 8) {
-                setInputInvalid(loginPasswordInput, true);
-                setFormStatus(loginStatus, "密码至少需要 8 位。", "error");
-                return;
-            }
-
-            if (false) {
-                setFormStatus(loginStatus, "请输入邮箱和密码。", "error");
-                return;
-            }
-
-            setButtonBusy(loginSubmitButton, true);
-            try {
-                const payload = await requestJson("/api/auth/login", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        email: normalizedLoginEmail,
-                        password: normalizedLoginPassword
-                    })
-                });
-
-                setFormStatus(loginStatus, "登录成功，正在进入个人中心。", "success");
-                handleAuthSuccess(payload, rememberLoginCheckbox ? rememberLoginCheckbox.checked : true);
-            } catch (error) {
-                applyAuthFieldErrors(error.fieldErrors, loginFieldMap);
-                if (!error.fieldErrors) {
-                    setInputInvalid(loginEmailInput, true);
-                    setInputInvalid(loginPasswordInput, true);
-                }
-                setFormStatus(loginStatus, friendlyAuthError(error.message, error.fieldErrors), "error");
-            } finally {
-                setButtonBusy(loginSubmitButton, false);
-            }
-        });
-    }
-
-    if (registerForm) {
-        const registerSubmitButton = registerForm.querySelector(".form-submit");
-        const registerStatus = ensureFormStatusElement(registerForm);
-        const registerFieldMap = {
-            displayName: registerDisplayNameInput,
-            email: registerEmailInput,
-            password: registerPasswordInput
-        };
-        const hintLength = document.getElementById("hintLength");
-        const hintLetter = document.getElementById("hintLetter");
-        const hintNumber = document.getElementById("hintNumber");
-
-        // 瀵嗙爜寮哄害瀹炴椂鎻愮ず
-        if (registerPasswordInput) {
-            registerPasswordInput.addEventListener("input", function () {
-                const value = this.value;
-                toggleHint(hintLength, value.length >= 8);
-                toggleHint(hintLetter, /[A-Za-z]/.test(value));
-                toggleHint(hintNumber, /[0-9]/.test(value));
-            });
-        }
-
-        registerForm.addEventListener("submit", async function (event) {
-            event.preventDefault();
-            setFormStatus(registerStatus, "", "");
-            applyAuthFieldErrors(null, registerFieldMap);
-
-            const registerDisplayName = registerDisplayNameInput.value.trim();
-            const registerEmail = registerEmailInput.value.trim();
-
-            const registerPassword = registerPasswordInput.value;
-
-            if (!registerDisplayName || !registerEmail || !registerPassword.trim()) {
-                setInputInvalid(registerDisplayNameInput, !registerDisplayName);
-                setInputInvalid(registerEmailInput, !registerEmail);
-                setInputInvalid(registerPasswordInput, !registerPassword.trim());
-                setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
-                return;
-            }
-
-            if (!isValidEmailAddress(registerEmail)) {
-                setInputInvalid(registerEmailInput, true);
-                setFormStatus(registerStatus, "请输入有效的邮箱地址。", "error");
-                return;
-            }
-
-            if (registerDisplayName.length > 120) {
-                setInputInvalid(registerDisplayNameInput, true);
-                setFormStatus(registerStatus, "昵称最多 120 个字符。", "error");
-                return;
-            }
-
-            if (false) {
-                setFormStatus(registerStatus, "请完整填写昵称、邮箱和密码。", "error");
-                return;
-            }
-
-            if (registerPassword.length < 8 || !/[A-Za-z]/.test(registerPassword) || !/[0-9]/.test(registerPassword)) {
-                setInputInvalid(registerPasswordInput, true);
-                setFormStatus(registerStatus, "密码需要至少 8 位，并同时包含字母和数字。", "error");
-                return;
-            }
-
-            setButtonBusy(registerSubmitButton, true);
-            try {
-                const payload = await requestJson("/api/auth/register", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        displayName: registerDisplayName,
-                        email: registerEmail,
-                        password: registerPassword
-                    })
-                });
-
-                setFormStatus(registerStatus, "注册成功，正在进入个人中心。", "success");
-                handleAuthSuccess(payload, rememberRegisterCheckbox ? rememberRegisterCheckbox.checked : true);
-            } catch (error) {
-                applyAuthFieldErrors(error.fieldErrors, registerFieldMap);
-                if (!error.fieldErrors && /already registered|already exists/i.test(normalizeValue(error.message))) {
-                    setInputInvalid(registerEmailInput, true);
-                }
-                setFormStatus(registerStatus, friendlyAuthError(error.message, error.fieldErrors), "error");
-            } finally {
-                setButtonBusy(registerSubmitButton, false);
-            }
-        });
     }
 
     if (logoutButton) {

@@ -58,7 +58,7 @@ public class CatalogController {
     public List<WallpaperResponse> highlights(@RequestParam(defaultValue = "6") int limit,
                                               @RequestHeader(value = "X-Visitor-Key", required = false) String visitorKey,
                                               HttpServletRequest request) {
-        return catalogService.search(null, null, "hot", Math.max(1, Math.min(limit, 12)), false, resolveEngagementKey(request, visitorKey));
+        return catalogService.getHighlights(Math.max(1, Math.min(limit, 12)), resolveEngagementKey(request, visitorKey));
     }
 
     @GetMapping("/wallpapers")

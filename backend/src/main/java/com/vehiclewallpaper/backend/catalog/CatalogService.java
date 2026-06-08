@@ -35,6 +35,8 @@ import java.util.stream.Stream;
 public class CatalogService {
 
     private static final int PROFILE_DOWNLOAD_BATCH_SIZE = 24;
+    private static final int SUMMARY_TRENDING_LIMIT = 8;
+    private static final int HIGHLIGHT_PREFETCH_MULTIPLIER = 3;
 
     private static final List<BrandDefinition> DEFAULT_BRAND_DEFINITIONS = Arrays.asList(
         new BrandDefinition("benz", "奔驰", "MercedesBenz"),
@@ -64,6 +66,8 @@ public class CatalogService {
 
     private volatile CatalogOverviewResponse cachedNeutralOverview;
     private volatile CatalogOverviewResponse cachedGlobalOverview;
+    private volatile CatalogSummaryResponse cachedNeutralSummary;
+    private volatile CatalogSummaryResponse cachedGlobalSummary;
 
     public CatalogService(CatalogProperties catalogProperties,
                           BrandRepository brandRepository,
@@ -94,26 +98,13 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public CatalogSummaryResponse getSummary(String visitorKey) {
-        CatalogOverviewResponse overview = getOverview(visitorKey);
-        List<CatalogSummaryBrandResponse> brands = new ArrayList<CatalogSummaryBrandResponse>();
-        for (BrandCatalogResponse brand : overview.getBrands()) {
-            brands.add(new CatalogSummaryBrandResponse(
-                brand.getSlug(),
-                brand.getDisplayName(),
-                brand.getWallpaperCount(),
-                brand.getCoverImageUrl()
-            ));
+        CatalogSummaryResponse globalSummary = getGlobalSummary();
+        Set<Long> favoriteWallpaperIds = findFavoriteWallpaperIds(normalizeValue(visitorKey));
+        if (favoriteWallpaperIds.isEmpty()) {
+            return globalSummary;
         }
 
-        return new CatalogSummaryResponse(
-            overview.getGeneratedAt(),
-            overview.getTotalBrands(),
-            overview.getTotalWallpapers(),
-            overview.getTotalFavorites(),
-            overview.getTotalDownloads(),
-            brands,
-            overview.getTrendingWallpapers()
-        );
+        return applyVisitorFavorites(globalSummary, favoriteWallpaperIds);
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +128,8 @@ public class CatalogService {
     public void invalidateOverview() {
         cachedNeutralOverview = null;
         cachedGlobalOverview = null;
+        cachedNeutralSummary = null;
+        cachedGlobalSummary = null;
     }
 
     public List<BrandCatalogResponse> getBrands() {
@@ -169,38 +162,59 @@ public class CatalogService {
                                           int limit,
                                           boolean favoritesOnly,
                                           String visitorKey) {
-        List<WallpaperResponse> candidates = new ArrayList<WallpaperResponse>();
         String normalizedBrand = normalizeValue(brandSlug);
         String normalizedQuery = normalizeValue(query).toLowerCase(Locale.ROOT);
+        String normalizedVisitorKey = normalizeValue(visitorKey);
 
-        if (!normalizedBrand.isEmpty()) {
-            candidates.addAll(getBrand(normalizedBrand, visitorKey).getWallpapers());
-        } else {
-            for (BrandCatalogResponse brand : getBrands(visitorKey)) {
-                candidates.addAll(brand.getWallpapers());
-            }
+        List<WallpaperEntity> candidates = loadSearchWallpapers(
+            normalizedBrand,
+            normalizedQuery,
+            favoritesOnly,
+            normalizedVisitorKey
+        );
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
         }
 
-        List<WallpaperResponse> filtered = new ArrayList<WallpaperResponse>();
-        for (WallpaperResponse wallpaper : candidates) {
-            boolean queryMatches = normalizedQuery.isEmpty()
-                || containsIgnoreCase(wallpaper.getTitle(), normalizedQuery)
-                || containsIgnoreCase(wallpaper.getFileName(), normalizedQuery)
-                || containsIgnoreCase(wallpaper.getId(), normalizedQuery)
-                || containsIgnoreCase(wallpaper.getBrandSlug(), normalizedQuery);
+        List<Long> wallpaperIds = new ArrayList<Long>(candidates.size());
+        for (WallpaperEntity candidate : candidates) {
+            wallpaperIds.add(candidate.getId());
+        }
 
-            boolean favoritesMatch = !favoritesOnly || wallpaper.isFavorited();
-            if (queryMatches && favoritesMatch) {
-                filtered.add(wallpaper);
-            }
+        Map<Long, WallpaperMetricEntity> metricsByWallpaperId = indexWallpaperMetrics(
+            wallpaperMetricRepository.findAllByWallpaperIdIn(wallpaperIds)
+        );
+        Set<Long> favoriteWallpaperIds = favoritesOnly
+            ? new LinkedHashSet<Long>(wallpaperIds)
+            : findFavoriteWallpaperIds(normalizedVisitorKey, wallpaperIds);
+
+        List<WallpaperResponse> filtered = new ArrayList<WallpaperResponse>(candidates.size());
+        for (WallpaperEntity candidate : candidates) {
+            filtered.add(toCatalogWallpaperResponse(
+                candidate,
+                metricsByWallpaperId,
+                favoriteWallpaperIds.contains(candidate.getId())
+            ));
         }
 
         sortWallpapers(filtered, sort);
-
         if (filtered.size() <= limit) {
             return filtered;
         }
         return new ArrayList<WallpaperResponse>(filtered.subList(0, limit));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WallpaperResponse> getHighlights(int limit, String visitorKey) {
+        String normalizedVisitorKey = normalizeValue(visitorKey);
+        Set<Long> favoriteWallpaperIds = Collections.emptySet();
+        if (!normalizedVisitorKey.isEmpty()) {
+            favoriteWallpaperIds = new LinkedHashSet<Long>(
+                wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKey(normalizedVisitorKey)
+            );
+        }
+
+        return loadTrendingWallpapers(favoriteWallpaperIds, Math.max(1, Math.min(limit, 12)));
     }
 
     @Transactional(readOnly = true)
@@ -325,6 +339,8 @@ public class CatalogService {
         cachedNeutralOverview = buildNeutralOverview();
         CatalogOverviewResponse neutralOverview = cachedNeutralOverview;
         cachedGlobalOverview = decorateOverview(neutralOverview, createGlobalMetricsSnapshot(neutralOverview));
+        cachedNeutralSummary = buildNeutralSummary();
+        cachedGlobalSummary = decorateSummary(cachedNeutralSummary);
         return cachedGlobalOverview;
     }
 
@@ -336,6 +352,16 @@ public class CatalogService {
     private CatalogOverviewResponse getGlobalOverview() {
         CatalogOverviewResponse overview = cachedGlobalOverview;
         return overview == null ? refreshGlobalOverview() : overview;
+    }
+
+    private CatalogSummaryResponse getNeutralSummary() {
+        CatalogSummaryResponse summary = cachedNeutralSummary;
+        return summary == null ? refreshNeutralSummary() : summary;
+    }
+
+    private CatalogSummaryResponse getGlobalSummary() {
+        CatalogSummaryResponse summary = cachedGlobalSummary;
+        return summary == null ? refreshGlobalSummary() : summary;
     }
 
     private synchronized CatalogOverviewResponse refreshNeutralOverview() {
@@ -359,6 +385,29 @@ public class CatalogService {
         CatalogOverviewResponse neutralOverview = getNeutralOverview();
         cachedGlobalOverview = decorateOverview(neutralOverview, createGlobalMetricsSnapshot(neutralOverview));
         return cachedGlobalOverview;
+    }
+
+    private synchronized CatalogSummaryResponse refreshNeutralSummary() {
+        if (cachedNeutralSummary != null) {
+            return cachedNeutralSummary;
+        }
+
+        if (catalogProperties.isSyncOnStartup()) {
+            transactionTemplate.executeWithoutResult(status -> syncCatalogToDatabase());
+        }
+
+        cachedNeutralSummary = buildNeutralSummary();
+        return cachedNeutralSummary;
+    }
+
+    private synchronized CatalogSummaryResponse refreshGlobalSummary() {
+        if (cachedGlobalSummary != null) {
+            return cachedGlobalSummary;
+        }
+
+        CatalogSummaryResponse neutralSummary = getNeutralSummary();
+        cachedGlobalSummary = decorateSummary(neutralSummary);
+        return cachedGlobalSummary;
     }
 
     private CatalogOverviewResponse buildNeutralOverview() {
@@ -403,6 +452,42 @@ public class CatalogService {
         );
     }
 
+    private CatalogSummaryResponse buildNeutralSummary() {
+        List<BrandEntity> brandsInOrder = brandRepository.findAllByOrderBySortOrderAsc();
+        Map<Long, Integer> wallpaperCountsByBrandId = new LinkedHashMap<Long, Integer>();
+        Map<Long, String> coverImageByBrandId = new LinkedHashMap<Long, String>();
+        int totalWallpapers = 0;
+
+        for (WallpaperEntity entity : wallpaperRepository.findAllActiveWithBrandOrder()) {
+            Long brandId = entity.getBrand().getId();
+            wallpaperCountsByBrandId.put(brandId, wallpaperCountsByBrandId.getOrDefault(brandId, 0) + 1);
+            if (!coverImageByBrandId.containsKey(brandId)) {
+                coverImageByBrandId.put(brandId, entity.getPreviewUrl());
+            }
+            totalWallpapers++;
+        }
+
+        List<CatalogSummaryBrandResponse> brands = new ArrayList<CatalogSummaryBrandResponse>();
+        for (BrandEntity brand : brandsInOrder) {
+            brands.add(new CatalogSummaryBrandResponse(
+                brand.getSlug(),
+                brand.getDisplayName(),
+                wallpaperCountsByBrandId.getOrDefault(brand.getId(), 0),
+                coverImageByBrandId.getOrDefault(brand.getId(), "")
+            ));
+        }
+
+        return new CatalogSummaryResponse(
+            LocalDateTime.now(),
+            brands.size(),
+            totalWallpapers,
+            0L,
+            0L,
+            brands,
+            Collections.<WallpaperResponse>emptyList()
+        );
+    }
+
     private CatalogOverviewResponse decorateOverview(CatalogOverviewResponse neutralOverview, CatalogMetricsSnapshot metricsSnapshot) {
         List<BrandCatalogResponse> brands = new ArrayList<BrandCatalogResponse>();
         List<WallpaperResponse> flattened = new ArrayList<WallpaperResponse>();
@@ -440,6 +525,18 @@ public class CatalogService {
             metricsSnapshot.getTotalDownloads(),
             trending,
             brands
+        );
+    }
+
+    private CatalogSummaryResponse decorateSummary(CatalogSummaryResponse neutralSummary) {
+        return new CatalogSummaryResponse(
+            neutralSummary.getGeneratedAt(),
+            neutralSummary.getTotalBrands(),
+            neutralSummary.getTotalWallpapers(),
+            wallpaperMetricRepository.sumFavoriteCount(),
+            wallpaperMetricRepository.sumDownloadCount(),
+            neutralSummary.getBrands(),
+            loadTrendingWallpapers(Collections.<Long>emptySet(), SUMMARY_TRENDING_LIMIT)
         );
     }
 
@@ -498,6 +595,133 @@ public class CatalogService {
         );
     }
 
+    private CatalogSummaryResponse applyVisitorFavorites(CatalogSummaryResponse globalSummary, Set<Long> favoriteWallpaperIds) {
+        if (favoriteWallpaperIds == null || favoriteWallpaperIds.isEmpty()) {
+            return globalSummary;
+        }
+
+        Map<Long, WallpaperResponse> overrides = new LinkedHashMap<Long, WallpaperResponse>();
+        boolean changed = false;
+        List<WallpaperResponse> trending = new ArrayList<WallpaperResponse>();
+        for (WallpaperResponse wallpaper : globalSummary.getTrendingWallpapers()) {
+            WallpaperResponse updatedWallpaper = withFavoritedState(wallpaper, favoriteWallpaperIds, overrides);
+            changed = changed || updatedWallpaper != wallpaper;
+            trending.add(updatedWallpaper);
+        }
+
+        if (!changed) {
+            return globalSummary;
+        }
+
+        return new CatalogSummaryResponse(
+            globalSummary.getGeneratedAt(),
+            globalSummary.getTotalBrands(),
+            globalSummary.getTotalWallpapers(),
+            globalSummary.getTotalFavorites(),
+            globalSummary.getTotalDownloads(),
+            globalSummary.getBrands(),
+            trending
+        );
+    }
+
+    private List<WallpaperEntity> loadSearchWallpapers(String normalizedBrand,
+                                                       String normalizedQuery,
+                                                       boolean favoritesOnly,
+                                                       String normalizedVisitorKey) {
+        if (favoritesOnly) {
+            return loadFavoriteSearchWallpapers(normalizedBrand, normalizedQuery, normalizedVisitorKey);
+        }
+
+        if (!normalizedBrand.isEmpty() && !normalizedQuery.isEmpty()) {
+            return wallpaperRepository.searchActiveByBrandSlugWithBrandOrder(normalizedBrand, likeQuery(normalizedQuery));
+        }
+        if (!normalizedBrand.isEmpty()) {
+            return wallpaperRepository.findAllActiveByBrandSlugWithBrandOrder(normalizedBrand);
+        }
+        if (!normalizedQuery.isEmpty()) {
+            return wallpaperRepository.searchActiveWithBrandOrder(likeQuery(normalizedQuery));
+        }
+        return wallpaperRepository.findAllActiveWithBrandOrder();
+    }
+
+    private List<WallpaperEntity> loadFavoriteSearchWallpapers(String normalizedBrand,
+                                                               String normalizedQuery,
+                                                               String normalizedVisitorKey) {
+        if (normalizedVisitorKey.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<WallpaperFavoriteEntity> favorites = wallpaperFavoriteRepository.findAllByVisitorKeyWithWallpaper(normalizedVisitorKey);
+        if (favorites.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<WallpaperEntity> matchingWallpapers = new ArrayList<WallpaperEntity>();
+        for (WallpaperFavoriteEntity favorite : favorites) {
+            WallpaperEntity wallpaper = favorite.getWallpaper();
+            if (wallpaper == null || !wallpaper.isActive()) {
+                continue;
+            }
+            if (!normalizedBrand.isEmpty() && !normalizedBrand.equalsIgnoreCase(wallpaper.getBrand().getSlug())) {
+                continue;
+            }
+            if (!normalizedQuery.isEmpty() && !matchesWallpaperQuery(wallpaper, normalizedQuery)) {
+                continue;
+            }
+            matchingWallpapers.add(wallpaper);
+        }
+        return matchingWallpapers;
+    }
+
+    private List<WallpaperResponse> loadTrendingWallpapers(Set<Long> favoriteWallpaperIds, int limit) {
+        int normalizedLimit = Math.max(1, limit);
+        List<Long> topWallpaperIds = wallpaperMetricRepository.findTopActiveWallpaperIds(
+            Math.max(normalizedLimit, SUMMARY_TRENDING_LIMIT) * HIGHLIGHT_PREFETCH_MULTIPLIER
+        );
+        if (topWallpaperIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, WallpaperEntity> wallpaperById = new LinkedHashMap<Long, WallpaperEntity>();
+        for (WallpaperEntity wallpaper : wallpaperRepository.findAllActiveByIdsWithBrand(topWallpaperIds)) {
+            wallpaperById.put(wallpaper.getId(), wallpaper);
+        }
+
+        Map<Long, WallpaperMetricEntity> metricsByWallpaperId = indexWallpaperMetrics(
+            wallpaperMetricRepository.findAllByWallpaperIdIn(topWallpaperIds)
+        );
+
+        List<WallpaperResponse> trending = new ArrayList<WallpaperResponse>();
+        for (Long wallpaperId : topWallpaperIds) {
+            WallpaperEntity wallpaper = wallpaperById.get(wallpaperId);
+            if (wallpaper == null) {
+                continue;
+            }
+            trending.add(toCatalogWallpaperResponse(
+                wallpaper,
+                metricsByWallpaperId,
+                favoriteWallpaperIds != null && favoriteWallpaperIds.contains(wallpaperId)
+            ));
+            if (trending.size() >= normalizedLimit) {
+                break;
+            }
+        }
+
+        return trending;
+    }
+
+    private boolean matchesWallpaperQuery(WallpaperEntity wallpaper, String normalizedQuery) {
+        return containsIgnoreCase(wallpaper.getTitle(), normalizedQuery)
+            || containsIgnoreCase(wallpaper.getFileName(), normalizedQuery)
+            || containsIgnoreCase(wallpaper.getSlug(), normalizedQuery)
+            || containsIgnoreCase(wallpaper.getBrand().getSlug(), normalizedQuery)
+            || containsIgnoreCase(wallpaper.getBrand().getDisplayName(), normalizedQuery);
+    }
+
+    private String likeQuery(String normalizedQuery) {
+        return "%" + normalizedQuery + "%";
+    }
+
     private WallpaperResponse toNeutralWallpaperResponse(WallpaperEntity entity) {
         return new WallpaperResponse(
             entity.getSlug(),
@@ -539,6 +763,12 @@ public class CatalogService {
     }
 
     private WallpaperResponse toProfileWallpaperResponse(WallpaperEntity wallpaper,
+                                                         Map<Long, WallpaperMetricEntity> metricsByWallpaperId,
+                                                         boolean favorited) {
+        return toCatalogWallpaperResponse(wallpaper, metricsByWallpaperId, favorited);
+    }
+
+    private WallpaperResponse toCatalogWallpaperResponse(WallpaperEntity wallpaper,
                                                          Map<Long, WallpaperMetricEntity> metricsByWallpaperId,
                                                          boolean favorited) {
         WallpaperMetricEntity metric = metricsByWallpaperId.get(wallpaper.getId());
@@ -773,6 +1003,22 @@ public class CatalogService {
         return metricsByWallpaperId;
     }
 
+    private Set<Long> findFavoriteWallpaperIds(String normalizedVisitorKey) {
+        if (normalizedVisitorKey.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return new LinkedHashSet<Long>(wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKey(normalizedVisitorKey));
+    }
+
+    private Set<Long> findFavoriteWallpaperIds(String normalizedVisitorKey, List<Long> wallpaperIds) {
+        if (normalizedVisitorKey.isEmpty() || wallpaperIds == null || wallpaperIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return new LinkedHashSet<Long>(
+            wallpaperFavoriteRepository.findFavoriteWallpaperIdsByVisitorKeyAndWallpaperIds(normalizedVisitorKey, wallpaperIds)
+        );
+    }
+
     private WallpaperMetricEntity ensureWallpaperMetric(WallpaperEntity wallpaper) {
         return wallpaperMetricRepository.findByWallpaperId(wallpaper.getId())
             .orElseGet(() -> {
@@ -796,6 +1042,7 @@ public class CatalogService {
 
     private void invalidateMetricsOverview() {
         cachedGlobalOverview = null;
+        cachedGlobalSummary = null;
     }
 
     private void syncCatalogToDatabase() {
